@@ -1,0 +1,15 @@
+{
+    "naming_tokens": ["name", "side", "index", "description", "extension"],
+    "naming_rule": "{name}{index}_{side}_{description}_{extension}",
+    "left": "L",
+    "right": "R",
+    "middle": "M",
+    "control": "ctrl",
+    "guide": "guide",
+    "rig": "rig",
+    "joint": "jnt",
+    "model":"model",
+    "group": "grp",
+    "offset":"offset",
+    "setup":"setup"
+}
