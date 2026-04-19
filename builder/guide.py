@@ -15,6 +15,7 @@ class Guide(Main):
 
         self.parent = None
         self.save_transform = []
+        self.save_helpers = []
 
         if name:
             self.set_parameter_value("name", name)
@@ -93,7 +94,6 @@ class Guide(Main):
         self.post_draw()
 
     def read_from_scene(self):
-        guide_transform = {}
         root_name = self._get_name("root")
         root = pm.PyNode(root_name)
         for name in self.values:
@@ -102,37 +102,52 @@ class Guide(Main):
                 val = root.attr(name).get()
                 self.set_parameter_value(name, val)
 
-        for transform in self.save_transform:
-            full_name = self._get_name(description=transform)
-
-            if not pm.objExists(full_name):
-                continue
-            # pylint: disable-next=assignment-from-no-return
-            mtx = pm.xform(full_name, q=1, ws=1, m=1)
-            guide_transform[transform] = mtx
-        return guide_transform
-
-    def update(self, transform=None):
-        if transform is None:
-            return
+        transforms = {}
         for t in self.save_transform:
             full_name = self._get_name(description=t)
-            try:
-                mtx = transform[t]
-                if pm.objExists(full_name):
-                    pm.xform(full_name, a=1, ws=1, m=mtx)
-            except KeyError:
-                print(f"{t} is not in save transform")
-                continue
+            if pm.objExists(full_name):
+                # pylint: disable-next=assignment-from-no-return,too-many-function-args
+                transforms[t] = pm.xform(full_name, q=True, ws=True, m=True)
+
+        helpers = {}
+        for h in self.save_helpers:
+            full_name = self._get_name(description=h)
+            if pm.objExists(full_name):
+                # pylint: disable-next=assignment-from-no-return,too-many-function-args
+                helpers[h] = pm.xform(full_name, q=True, ws=True, m=True)
+
+        return transforms, helpers
+
+    def update(self, transforms=None, helpers=None):
+        if transforms:
+            for t in self.save_transform:
+                full_name = self._get_name(description=t)
+                if t not in transforms:
+                    print(f"'{t}' not found in transforms data")
+                    continue
+                if not pm.objExists(full_name):
+                    pm.warning(f"'{full_name}' not found in scene")
+                    continue
+                pm.xform(full_name, a=True, ws=True, m=transforms[t])
+        if helpers:
+            for h in self.save_helpers:
+                full_name = self._get_name(description=h)
+                if h not in helpers:
+                    print(f"'{h}' not found in helpers data")
+                    continue
+                if not pm.objExists(full_name):
+                    pm.warning(f"'{full_name}' not found in scene, creating new one")
+                pm.xform(full_name, a=True, ws=True, m=helpers[h])
 
     def serialize(self):
-        transforms = self.read_from_scene()
+        transforms, helpers = self.read_from_scene()
         data = {
             "type": self.__class__.__name__,
             "parameters": {
                 name: self.get_parameter_value(name) for name in self.values
             },
             "transforms": transforms,
+            "helpers": helpers,
             "parent": str(self.parent) if self.parent else None,
         }
         return data
@@ -271,6 +286,12 @@ class RigGuide(Main):
                 instance.deserialize(comp_data)
 
         self._add_objects()
+
+        for comp_data, component in zip(data["components"], self.components):
+            component.update(
+                transforms=comp_data.get("transforms"),
+                helpers=comp_data.get("helpers"),
+            )
 
     def _resolve_parent(self, parent):
         # parent_sample : "Spine:middle:0:chest"
