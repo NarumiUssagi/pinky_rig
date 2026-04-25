@@ -31,8 +31,10 @@ class SpineRig(Rig):
 
     def add_relations(self):
         self.relatives["root"] = self.jnts[0]
-        self.relatives["spine"] = self.jnts[1]
-        self.relatives["chest"] = self.jnts[2]
+        for i in range(len(self.transforms) - 2):
+            self.relatives["spine" + str(i)] = self.jnts[1 + i]
+            print(self.relatives["spine" + str(i)])
+        self.relatives["chest"] = self.jnts[-1]
 
     def _update_rotation(self):
         positions = [
@@ -45,5 +47,4 @@ class SpineRig(Rig):
         mtxs = transform.chain_orient_from_positions(positions, up_vector)
         keys = list(self.transforms.keys())
         for i, mtx in enumerate(mtxs):
-            if i < 3:
-                self.transforms[keys[i]] = list(mtx)
+            self.transforms[keys[i]] = list(mtx)

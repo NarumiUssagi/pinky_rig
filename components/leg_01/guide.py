@@ -25,9 +25,9 @@ class LegGuide(Guide):
     def add_objects(self):
         root_mtx = transform.get_offset_matrix(self.parent, (-2, -2, 0))
         knee_mtx = transform.get_offset_matrix(self.parent, (-2, -7, 0))
-        wrist_mtx = transform.get_offset_matrix(self.parent, (-2, -12, 0))
+        ankle_mtx = transform.get_offset_matrix(self.parent, (-2, -12, 0))
         upv_mtx = transform.get_offset_matrix(self.parent, (-2, -2, 5))
-        eff_mtx = transform.get_offset_matrix(self.parent, (-2, -13, 0))
+        eff_mtx = transform.get_offset_matrix(self.parent, (-2, -12, 2))
 
         self.root = self.add_root(
             name=self._get_name("root"),
@@ -42,7 +42,7 @@ class LegGuide(Guide):
         self.ankle = self.add_loc(
             self._get_name("ankle"),
             parent=self.knee,
-            position=wrist_mtx,
+            position=ankle_mtx,
         )
         self.upv = self.add_loc(
             self._get_name("upv"),

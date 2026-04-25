@@ -81,6 +81,7 @@ def chain_orient_from_positions(positions, up_vector, aim_axis="x", up_axis="y")
 
     result = []
     aim_vectors = []
+    prev_side = om.MVector(1, 0, 0)
 
     for i, _ in enumerate(positions):
         if i < len(positions) - 1:
@@ -90,6 +91,11 @@ def chain_orient_from_positions(positions, up_vector, aim_axis="x", up_axis="y")
         aim_vectors.append(aim_vector)
 
         side = (aim_vector ^ up_vector).normal()
+        if side.length() < 0.001:
+            # 用前一個 joint 的 side
+            side = prev_side
+        side = side.normal()
+        prev_side = side
         corrected_up = (side ^ aim_vector).normal()
 
         rows = [None, None, None]

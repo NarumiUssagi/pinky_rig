@@ -113,6 +113,7 @@ class LegRig(Rig):
         up_vector = upv_point - root_point
         mtxs = transform.chain_orient_from_positions(positions, up_vector)
         keys = list(self.transforms.keys())
+        print(mtxs)
         for i, mtx in enumerate(mtxs):
             if i < 3:
                 self.transforms[keys[i]] = list(mtx)

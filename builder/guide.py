@@ -43,9 +43,12 @@ class Guide(Main):
                 if val:
                     root.attr(parameter).set(str(val))
             else:
-                pm.addAttr(root, ln=parameter, at=typ, k=True)
-                if val is not None:
-                    root.attr(parameter).set(val)
+                try:
+                    pm.addAttr(root, ln=parameter, at=typ, k=True)
+                    if val is not None:
+                        root.attr(parameter).set(val)
+                except RuntimeError:
+                    pm.warning(f"Please check the type of parameter {name}.{typ}")
 
         return root
 
