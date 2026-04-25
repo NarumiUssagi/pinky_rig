@@ -20,8 +20,10 @@ class Rig(object):
         self.index = params.get("index", 0)
         self.settings = params
         self.transforms = data.get("transforms", {})
+        self.helpers = data.get("helpers", {})
         self.parent = data.get("parent")
 
+        self.pref_axis = "+z"
         self.jnts = []
         self.fk_ctrls = []
         self.ik_ctrls = []
@@ -76,6 +78,9 @@ class Rig(object):
         # pylint: disable-next=assignment-from-no-return
         self.setup_grp = pm.group(n=setup_grp_name, p=self.builder.setup_grp, em=True)
 
+    def _update_rotation(self):
+        pass
+
     def _create_joints(self):
         names = [self._get_name(g, self.config.get("joint")) for g in self.transforms]
         self.jnts = joint.create_joint_chain(
@@ -128,7 +133,9 @@ class Rig(object):
         pv_offset_name = self._get_name("PV", self.config.get("offset"))
 
         positions = [pm.xform(j, ws=1, q=1, t=1) for j in self.ik_jnts]
-        pv_pos = transform.find_pole_vector_position(positions)
+        pv_pos = transform.find_pole_vector_position(
+            positions, distance_multiplier=1.0, prefer_axis=self.pref_axis
+        )
 
         _, ik_ctrl = control.create_control(
             ik_ctrl_name,
@@ -246,10 +253,13 @@ class RigBuilder(object):
     def _connect_components(self):
         for component in self.components:
             if not component.parent:
+                print(f"{component.name} has no parent, skipping connection")
                 continue
             if ":" not in component.parent:
+                print(f"{component.name} has invalid parent format: {component.parent}")
                 continue
             target = self.find_relative(component.parent)
+            print(f"Connecting {component.name} to {component.parent} -> {target}")
             if not target:
                 continue
             pm.parent(component.jnts[0], target)

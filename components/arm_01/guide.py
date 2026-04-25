@@ -7,7 +7,7 @@ from ...core import transform
 
 
 class ArmGuide(Guide):
-    def __init__(self, name="arm", side="middle", index=0, config=None):
+    def __init__(self, name="arm", side="right", index=0, config=None):
         super().__init__(name=name, side=side, index=index, config=config)
         self.save_transform = ["root", "elbow", "wrist"]
         self.save_helpers = ["upv", "eff"]
@@ -22,11 +22,11 @@ class ArmGuide(Guide):
         self.add_parameter("ifk_blend", 0.0, "float")
 
     def add_objects(self):
-        root_mtx = transform.get_offset_matrix(self.parent)
-        elbow_mtx = transform.get_offset_matrix(self.parent, (-5, 0, 0))
-        wrist_mtx = transform.get_offset_matrix(self.parent, (-10, 0, 0))
-        upv_mtx = transform.get_offset_matrix(self.parent, (-5, 5, 0))
-        eff_mtx = transform.get_offset_matrix(self.parent, (-12.5, 0, 0))
+        root_mtx = transform.get_offset_matrix(self.parent, (-2, 0, 0))
+        elbow_mtx = transform.get_offset_matrix(self.parent, (-7, 0, 0))
+        wrist_mtx = transform.get_offset_matrix(self.parent, (-12, 0, 0))
+        upv_mtx = transform.get_offset_matrix(self.parent, (-2, 0, -5))
+        eff_mtx = transform.get_offset_matrix(self.parent, (-13, 0, 0))
 
         self.root = self.add_root(
             name=self._get_name("root"),

@@ -3,8 +3,10 @@ SpineRig Class
 """
 
 import pymel.core as pm
+import maya.api.OpenMaya as om
 
 from ...builder.rig import Rig
+from ...core import transform
 
 
 class SpineRig(Rig):
@@ -13,6 +15,7 @@ class SpineRig(Rig):
 
     def add_objects(self):
         self._add_group()
+        self._update_rotation()
         self._create_joints()
         self._create_fk_chain()
         self._create_fk_ctrl()
@@ -30,3 +33,17 @@ class SpineRig(Rig):
         self.relatives["root"] = self.jnts[0]
         self.relatives["spine"] = self.jnts[1]
         self.relatives["chest"] = self.jnts[2]
+
+    def _update_rotation(self):
+        positions = [
+            om.MPoint(
+                self.transforms[i][12], self.transforms[i][13], self.transforms[i][14]
+            )
+            for i in self.transforms
+        ]
+        up_vector = om.MVector(0, 0, 1)
+        mtxs = transform.chain_orient_from_positions(positions, up_vector)
+        keys = list(self.transforms.keys())
+        for i, mtx in enumerate(mtxs):
+            if i < 3:
+                self.transforms[keys[i]] = list(mtx)

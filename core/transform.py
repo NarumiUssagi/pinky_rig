@@ -29,7 +29,7 @@ def get_offset_matrix(parent_name=None, out_vec=None):
     return list(out_m)
 
 
-def find_pole_vector_position(positions, distance_multiplier=1.0):
+def find_pole_vector_position(positions, distance_multiplier=1.0, prefer_axis="+z"):
     if len(positions) != 3:
         return None
 
@@ -50,9 +50,13 @@ def find_pole_vector_position(positions, distance_multiplier=1.0):
     if db_dis > 0.001:
         pv_dir = db_vector.normal()
     else:
-        world_y = om.MVector(0, 1, 0)
+        if prefer_axis == "+z":
+            world_y = om.MVector(0, 0, 1)
+        else:
+            world_y = om.MVector(0, 0, -1)
+
         if abs(ac_normal * world_y) > 0.99:
-            pv_dir = om.MVector(0, 0, 1)
+            pv_dir = om.MVector(0, 1, 0)
         else:
             pv_dir = world_y
     result = b_pos + pv_dir * ac_dis * distance_multiplier
@@ -114,3 +118,16 @@ def chain_orient_from_positions(positions, up_vector, aim_axis="x", up_axis="y")
             ]
         )
         result.append(matrix)
+    return result
+
+
+def mirror_matrix_yz(matrix=None):
+    if not matrix:
+        return
+    matrix[12] *= -1
+    # rotation mirror across YZ plane
+    matrix[1] *= -1
+    matrix[2] *= -1
+    matrix[4] *= -1
+    matrix[8] *= -1
+    return matrix

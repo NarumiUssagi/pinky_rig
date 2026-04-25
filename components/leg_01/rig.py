@@ -9,12 +9,11 @@ from ...builder.rig import Rig
 from ...core import transform
 
 
-class ArmRig(Rig):
+class LegRig(Rig):
     def __init__(self, config=None, data=None, rig_builder=None):
         super().__init__(config=config, data=data, rig_builder=rig_builder)
         self.up_transform = self.helpers["upv"]
         self.eff_transform = self.helpers["eff"]
-        self.pref_axis = "-z"
 
     def add_objects(self):
         self._add_group()
@@ -92,8 +91,8 @@ class ArmRig(Rig):
 
     def add_relations(self):
         self.relatives["root"] = self.jnts[0]
-        self.relatives["elbow"] = self.jnts[1]
-        self.relatives["wrist"] = self.jnts[2]
+        self.relatives["knee"] = self.jnts[1]
+        self.relatives["ankle"] = self.jnts[2]
 
     def _update_rotation(self):
         positions = [

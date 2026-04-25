@@ -6,6 +6,7 @@ import pymel.core as pm
 
 from .main import Main
 from . import naming
+from ..core import transform
 
 
 class Guide(Main):
@@ -95,6 +96,9 @@ class Guide(Main):
 
     def read_from_scene(self):
         root_name = self._get_name("root")
+        if not pm.objExists(root_name):
+            pm.warning(f"Component root {root_name} doesn't exist,please build first")
+            return ([], [])
         root = pm.PyNode(root_name)
         for name in self.values:
             # pylint: disable=no-member
@@ -141,6 +145,8 @@ class Guide(Main):
 
     def serialize(self):
         transforms, helpers = self.read_from_scene()
+        if not transforms:
+            return
         data = {
             "type": self.__class__.__name__,
             "parameters": {
@@ -316,6 +322,37 @@ class RigGuide(Main):
             "extension": extension_token,
         }
         return naming.get_name(self.naming_config, values)
+
+    def mirror_components(self, component=None, registry=None):
+        if not component:
+            return
+        comp_data = component.serialize()
+        if not comp_data:
+            return
+        guide_type = comp_data["type"]
+        guide_class = registry.get(guide_type)
+        parent = comp_data.get("parent")
+
+        instance = guide_class(config=self.naming_config)
+        self.add_component(instance, parent)
+        if pm.objExists(self.grp_name):
+            comp_data["parameters"]["side"] = (
+                "left" if comp_data["parameters"]["side"] == "right" else "right"
+            )
+            for key in comp_data["transforms"]:
+                comp_data["transforms"][key] = transform.mirror_matrix_yz(
+                    comp_data["transforms"][key]
+                )
+            for key in comp_data["helpers"]:
+                comp_data["helpers"][key] = transform.mirror_matrix_yz(
+                    comp_data["helpers"][key]
+                )
+            instance.deserialize(comp_data)
+            instance.draw(parent=self._resolve_parent(parent))
+            instance.update(
+                transforms=comp_data["transforms"], helpers=comp_data.get("helpers")
+            )
+            instance.parent = parent
 
     @property
     def grp_name(self):

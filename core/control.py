@@ -14,9 +14,9 @@ def create_control(
     parent=None,
 ):
     if shape == "circle":
-        ctrl = pm.circle(ch=False, n=name)[0]
+        ctrl = pm.circle(ch=False, n=name, nr=(1, 0, 0))[0]
     else:
-        ctrl = pm.circle(ch=False, n=name)[0]
+        ctrl = pm.circle(ch=False, n=name, nr=(1, 0, 0))[0]
 
     # pylint: disable-next=assignment-from-no-return
     offset_grp = pm.group(ctrl, n=offset_name)
