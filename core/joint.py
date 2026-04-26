@@ -25,6 +25,7 @@ def create_joint_chain(transform, names=None, parent=None):
 
         pm.xform(jnt, a=True, ws=True, m=mtx)
         pm.makeIdentity(jnt, a=True, r=True)
+        jnt.segmentScaleCompensate.set(0)
         jnts.append(jnt)
 
     return jnts

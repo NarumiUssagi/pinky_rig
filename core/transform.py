@@ -17,8 +17,12 @@ def get_offset_matrix(parent_name=None, out_vec=None):
                 [out_vec[0], out_vec[1], out_vec[2], 1],
             ]
         )
+
+    if parent_name:
+        parent_name = str(parent_name)
     # pylint: disable-next=too-many-function-args
     if parent_name and mc.objExists(parent_name):
+
         sel = om.MSelectionList()
         sel.add(parent_name)
         # pylint: disable-next=assignment-from-no-return,too-many-function-args
@@ -63,8 +67,12 @@ def find_pole_vector_position(positions, distance_multiplier=1.0, prefer_axis="+
     return (result.x, result.y, result.z)
 
 
-def chain_orient_from_positions(positions, up_vector, aim_axis="x", up_axis="y"):
+def chain_orient_from_positions(positions, up_vector, aim_axis="+x", up_axis="+y"):
     axis = ["x", "y", "z"]
+    aim_negative = -1 if aim_axis.startswith("-") else 1
+    up_negative = -1 if up_axis.startswith("-") else 1
+    aim_axis = aim_axis[-1]
+    up_axis = up_axis[-1]
 
     if aim_axis not in axis:
         raise ValueError(f"invalid aim_axis: {aim_axis}")
@@ -92,15 +100,14 @@ def chain_orient_from_positions(positions, up_vector, aim_axis="x", up_axis="y")
 
         side = (aim_vector ^ up_vector).normal()
         if side.length() < 0.001:
-            # 用前一個 joint 的 side
             side = prev_side
         side = side.normal()
         prev_side = side
         corrected_up = (side ^ aim_vector).normal()
 
         rows = [None, None, None]
-        rows[aim_idx] = aim_vector
-        rows[up_idx] = corrected_up
+        rows[aim_idx] = aim_vector * aim_negative
+        rows[up_idx] = corrected_up * up_negative
         rows[side_idx] = side
 
         matrix = om.MMatrix(
@@ -130,10 +137,13 @@ def chain_orient_from_positions(positions, up_vector, aim_axis="x", up_axis="y")
 def mirror_matrix_yz(matrix=None):
     if not matrix:
         return
-    matrix[12] *= -1
-    # rotation mirror across YZ plane
-    matrix[1] *= -1
-    matrix[2] *= -1
-    matrix[4] *= -1
-    matrix[8] *= -1
-    return matrix
+    matrix = om.MMatrix(matrix)
+    mirror_m = om.MMatrix(
+        [
+            [-1, 0, 0, 0],
+            [0, 1, 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1],
+        ]
+    )
+    return matrix * mirror_m

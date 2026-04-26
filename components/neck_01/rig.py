@@ -1,5 +1,5 @@
 """
-SpineRig Class
+NeckRig Class
 """
 
 import pymel.core as pm
@@ -9,7 +9,7 @@ from ...builder.rig import Rig
 from ...core import transform
 
 
-class SpineRig(Rig):
+class NeckRig(Rig):
     def __init__(self, config=None, data=None, rig_builder=None):
         super().__init__(config=config, data=data, rig_builder=rig_builder)
 

@@ -6,7 +6,7 @@ import pymel.core as pm
 import maya.api.OpenMaya as om
 
 from ...builder.rig import Rig
-from ...core import transform
+from ...core import transform, control
 
 
 class ArmRig(Rig):
@@ -90,11 +90,6 @@ class ArmRig(Rig):
             k=True,
         )
 
-    def add_relations(self):
-        self.relatives["root"] = self.jnts[0]
-        self.relatives["elbow"] = self.jnts[1]
-        self.relatives["wrist"] = self.jnts[2]
-
     def _update_rotation(self):
         positions = [
             om.MPoint(
@@ -112,8 +107,39 @@ class ArmRig(Rig):
         positions.append(eff_point)
 
         up_vector = upv_point - root_point
-        mtxs = transform.chain_orient_from_positions(positions, up_vector)
+        if self.side == "right":
+            mtxs = transform.chain_orient_from_positions(
+                positions, up_vector, aim_axis="+x", up_axis="+y"
+            )
+        else:
+            mtxs = transform.chain_orient_from_positions(
+                positions, up_vector, aim_axis="-x", up_axis="-y"
+            )
         keys = list(self.transforms.keys())
         for i, mtx in enumerate(mtxs):
             if i < 3:
                 self.transforms[keys[i]] = list(mtx)
+
+    def _create_settings_ctrl(self):
+        settings_ctrl_grp_name = self._get_name(
+            self.name + "_settings", self.config.get("group")
+        )
+        # pylint: disable-next=assignment-from-no-return
+        self.settings_ctrl_grp = pm.group(
+            n=settings_ctrl_grp_name, p=self.ctrl_grp, em=True
+        )
+        if self.side == "right":
+            mtx = transform.get_offset_matrix(self.jnts[0], (0, 0, -2))
+        elif self.side == "left":
+            mtx = transform.get_offset_matrix(self.jnts[0], (0, 0, 2))
+        else:
+            mtx = transform.get_offset_matrix(self.jnts[0], (0, 2, 0))
+
+        ctrl_name = self._get_name("settings", self.config.get("control"))
+        offset_name = self._get_name("settings", self.config.get("offset"))
+        _, self.settings_ctrl = control.create_control(
+            ctrl_name,
+            offset_name,
+            target_matrix=mtx,
+            parent=self.settings_ctrl_grp,
+        )

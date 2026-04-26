@@ -1,5 +1,5 @@
 """
-SpineRig Class
+ArmRig Class
 """
 
 import pymel.core as pm
@@ -9,9 +9,12 @@ from ...builder.rig import Rig
 from ...core import transform
 
 
-class SpineRig(Rig):
+class ControlRig(Rig):
     def __init__(self, config=None, data=None, rig_builder=None):
         super().__init__(config=config, data=data, rig_builder=rig_builder)
+        self.up_transform = self.helpers["upv"]
+        self.eff_transform = self.helpers["eff"]
+        self.pref_axis = "-z"
 
     def add_objects(self):
         self._add_group()
@@ -36,8 +39,25 @@ class SpineRig(Rig):
             )
             for i in self.transforms
         ]
-        up_vector = om.MVector(0, 0, 1)
-        mtxs = transform.chain_orient_from_positions(positions, up_vector)
+        root_point = positions[0]
+        upv_point = om.MPoint(
+            self.up_transform[12], self.up_transform[13], self.up_transform[14]
+        )
+        eff_point = om.MPoint(
+            self.eff_transform[12], self.eff_transform[13], self.eff_transform[14]
+        )
+        positions.append(eff_point)
+
+        up_vector = upv_point - root_point
+        if self.side == "right":
+            mtxs = transform.chain_orient_from_positions(
+                positions, up_vector, aim_axis="+x", up_axis="+y"
+            )
+        else:
+            mtxs = transform.chain_orient_from_positions(
+                positions, up_vector, aim_axis="-x", up_axis="-y"
+            )
         keys = list(self.transforms.keys())
         for i, mtx in enumerate(mtxs):
-            self.transforms[keys[i]] = list(mtx)
+            if i < 1:
+                self.transforms[keys[i]] = list(mtx)

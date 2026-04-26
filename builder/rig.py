@@ -31,7 +31,7 @@ class Rig(object):
         self.fk_jnts = []
         self.ik_handle = None
         self.settings_ctrl = None
-        self.ctr_grp = None
+        self.ctrl_grp = None
         self.fk_ctrl_grp = None
         self.ik_ctrl_grp = None
         self.settings_ctrl_grp = None
@@ -54,19 +54,20 @@ class Rig(object):
         return naming.get_name(self.config, values)
 
     def add_objects(self):
-        print(f"{self.name}{self.index} add objects")
+        pass
 
     def add_attributes(self):
-        print(f"{self.name}{self.index} add attributes")
+        pass
 
     def add_operators(self):
-        print(f"{self.name}{self.index} add operators")
+        pass
 
     def add_relations(self):
-        print(f"{self.name}{self.index} add relations")
+        for i, name in enumerate(self.transforms.keys()):
+            self.relatives[name] = self.jnts[i]
 
     def _add_group(self):
-        ctr_grp_name = self._get_name(
+        ctrl_grp_name = self._get_name(
             self.config.get("control"), self.config.get("group")
         )
         setup_grp_name = self._get_name(
@@ -74,7 +75,7 @@ class Rig(object):
         )
 
         # pylint: disable-next=assignment-from-no-return
-        self.ctr_grp = pm.group(n=ctr_grp_name, p=self.builder.control_grp, em=True)
+        self.ctrl_grp = pm.group(n=ctrl_grp_name, p=self.builder.root_ctrl, em=True)
         # pylint: disable-next=assignment-from-no-return
         self.setup_grp = pm.group(n=setup_grp_name, p=self.builder.setup_grp, em=True)
 
@@ -92,7 +93,7 @@ class Rig(object):
             self._get_name(g + "_FK", self.config.get("joint")) for g in self.transforms
         ]
         self.fk_jnts = joint.create_joint_chain(
-            self.transforms, names=names, parent=self.setup_grp
+            self.transforms, names=names, parent=self.ctrl_grp
         )
         for j in self.fk_jnts:
             j.v.set(0)
@@ -102,7 +103,7 @@ class Rig(object):
             self._get_name(g + "_IK", self.config.get("joint")) for g in self.transforms
         ]
         self.ik_jnts = joint.create_joint_chain(
-            self.transforms, names=names, parent=self.setup_grp
+            self.transforms, names=names, parent=self.ctrl_grp
         )
         for j in self.ik_jnts:
             j.v.set(0)
@@ -110,7 +111,7 @@ class Rig(object):
     def _create_fk_ctrl(self):
         fk_ctrl_grp_name = self._get_name(self.name + "_FK", self.config.get("group"))
         # pylint: disable-next=assignment-from-no-return
-        self.fk_ctrl_grp = pm.group(n=fk_ctrl_grp_name, p=self.ctr_grp, em=True)
+        self.fk_ctrl_grp = pm.group(n=fk_ctrl_grp_name, p=self.ctrl_grp, em=True)
 
         current_parent = self.fk_ctrl_grp
         for _, (guide, mtx) in enumerate(self.transforms.items()):
@@ -123,9 +124,9 @@ class Rig(object):
             self.fk_ctrls.append(ctrl)
 
     def _create_ik_ctrl(self):
-        ik_ctr_grp_name = self._get_name(self.name + "_IK", self.config.get("group"))
+        ik_ctrl_grp_name = self._get_name(self.name + "_IK", self.config.get("group"))
         # pylint: disable-next=assignment-from-no-return
-        self.ik_ctrl_grp = pm.group(n=ik_ctr_grp_name, p=self.ctr_grp, em=True)
+        self.ik_ctrl_grp = pm.group(n=ik_ctrl_grp_name, p=self.ctrl_grp, em=True)
 
         ik_ctrl_name = self._get_name("IK", self.config.get("control"))
         pv_ctrl_name = self._get_name("PV", self.config.get("control"))
@@ -157,7 +158,7 @@ class Rig(object):
         )
         # pylint: disable-next=assignment-from-no-return
         self.settings_ctrl_grp = pm.group(
-            n=settings_ctrl_grp_name, p=self.ctr_grp, em=True
+            n=settings_ctrl_grp_name, p=self.ctrl_grp, em=True
         )
 
         ctrl_name = self._get_name("settings", self.config.get("control"))
@@ -184,6 +185,8 @@ class RigBuilder(object):
         self.joint_grp = None
         self.model_grp = None
         self.setup_grp = None
+
+        self.root_ctrl = None
 
     def _add_group(self):
         root_grp_name = (
@@ -214,6 +217,7 @@ class RigBuilder(object):
 
     def build(self):
         self._add_group()
+        self._create_root_ctrl()
         self._init_components()
 
         for component in self.components:
@@ -276,6 +280,22 @@ class RigBuilder(object):
         if pm.objExists(self.name + "_guide_grp"):
             pm.parent(self.name + "_guide_grp", self.guide_grp)
             pm.setAttr(self.guide_grp + ".v", 0)
+
+    def _create_root_ctrl(self):
+        root_name = self._get_name("Global", self.config.get("control"))
+        root_offset_name = self._get_name("Global", self.config.get("group"))
+        self.root_ctrl = control.create_control(
+            name=root_name, offset_name=root_offset_name, parent=self.control_grp
+        )[1]
+
+    def _get_name(self, name, description=None):
+        values = {
+            "name": name,
+            "side": self.config.get("middle", "M"),
+            "index": 0,
+            "description": description,
+        }
+        return naming.get_name(self.config, values)
 
 
 def create_group(name=None, parent=None):

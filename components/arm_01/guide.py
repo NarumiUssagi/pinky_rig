@@ -23,7 +23,7 @@ class ArmGuide(Guide):
 
     def add_objects(self):
         root_mtx = transform.get_offset_matrix(self.parent, (-2, 0, 0))
-        elbow_mtx = transform.get_offset_matrix(self.parent, (-7, 0, 0))
+        elbow_mtx = transform.get_offset_matrix(self.parent, (-7, 0, -0.5))
         wrist_mtx = transform.get_offset_matrix(self.parent, (-12, 0, 0))
         upv_mtx = transform.get_offset_matrix(self.parent, (-2, 0, -5))
         eff_mtx = transform.get_offset_matrix(self.parent, (-14, 0, 0))

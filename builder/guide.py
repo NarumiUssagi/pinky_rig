@@ -83,7 +83,7 @@ class Guide(Main):
                 break
 
     def add_objects(self):
-        pass
+        raise NotImplementedError
 
     def post_draw(self):
         pass
@@ -209,6 +209,8 @@ class RigGuide(Main):
                 component.parent = self.grp_name
             else:
                 component.parent = parent
+        else:
+            print(f"Invalid component: {component}. It should be an instance of Guide.")
 
     def remove_component(self, component=None):
         if component in self.components:
@@ -336,6 +338,12 @@ class RigGuide(Main):
         guide_class = registry.get(guide_type)
         parent = comp_data.get("parent")
 
+        # Mirror side in parent reference
+        if "right" in parent:
+            parent = parent.replace("right", "left")
+        elif "left" in parent:
+            parent = parent.replace("left", "right")
+
         instance = guide_class(config=self.naming_config)
         self.add_component(instance, parent)
         if pm.objExists(self.grp_name):
@@ -356,6 +364,12 @@ class RigGuide(Main):
                 transforms=comp_data["transforms"], helpers=comp_data.get("helpers")
             )
             instance.parent = parent
+
+    def mirror_all(self, registry=None):
+        for component in list(self.components):
+            side = component.get_parameter_value("side")
+            if side in ("left", "right"):
+                self.mirror_components(component, registry=registry)
 
     @property
     def grp_name(self):
