@@ -16,7 +16,6 @@ def create_joint_chain(transform, names=None, parent=None):
     for i, (key, mtx) in enumerate(items):
         pm.select(cl=True)
         name = names[i] if names else str(key)
-        # pylint: disable-next=assignment-from-no-return
         jnt = pm.joint(n=name)
 
         current_parent = parent if i == 0 else jnts[-1]

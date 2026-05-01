@@ -11,5 +11,6 @@
     "model":"model",
     "group": "grp",
     "offset":"offset",
-    "setup":"setup"
+    "setup":"setup",
+    "buffer":"buffer"
 }

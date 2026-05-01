@@ -1,0 +1,96 @@
+"""
+EyeRig Class
+"""
+
+import pymel.core as pm
+import maya.api.OpenMaya as om
+
+from ...builder.rig import Rig
+from ...core import transform, control
+
+
+class EyeRig(Rig):
+    def __init__(self, config=None, data=None, rig_builder=None):
+        super().__init__(config=config, data=data, rig_builder=rig_builder)
+        self.aim_transform = self.helpers["aim"]
+        self.eye_offset = None
+        self.eye_ctrl = None
+        self.aim_ctrl = None
+
+    def add_objects(self):
+        self._add_group()
+        self._update_rotation()
+        self._create_joints()
+        self._create_eye_ctrl()
+        self._create_aim_ctrl()
+
+    def add_operators(self):
+        pm.parentConstraint(self.eye_ctrl, self.jnts[0], mo=True)
+        pm.scaleConstraint(self.eye_ctrl, self.jnts[0], mo=True)
+
+        # Aim constraint
+        aim_vector = (1, 0, 0) if self.side == "right" else (-1, 0, 0)
+
+        pm.aimConstraint(
+            self.aim_ctrl,
+            self.eye_ctrl.getParent(),
+            mo=True,
+            aimVector=aim_vector,
+            upVector=(0, 1, 0),
+            worldUpType="scene",
+        )
+
+    def _update_rotation(self):
+        positions = [
+            om.MPoint(
+                self.transforms[i][12], self.transforms[i][13], self.transforms[i][14]
+            )
+            for i in self.transforms
+        ]
+        aim_point = om.MPoint(
+            self.aim_transform[12], self.aim_transform[13], self.aim_transform[14]
+        )
+        positions.append(aim_point)
+
+        up_vector = om.MVector(0, 0, 1)
+        if self.side == "right":
+            mtxs = transform.chain_orient_from_positions(
+                positions, up_vector, aim_axis="+x", up_axis="+y"
+            )
+        else:
+            mtxs = transform.chain_orient_from_positions(
+                positions, up_vector, aim_axis="-x", up_axis="-y"
+            )
+        keys = list(self.transforms.keys())
+        for i, mtx in enumerate(mtxs):
+            if i < 1:
+                self.transforms[keys[i]] = list(mtx)
+
+    def _create_aim_ctrl(self):
+        aim_ctrl_name = self._get_name("aim", self.config.get("control"))
+        aim_offset_name = self._get_name("aim", self.config.get("offset"))
+
+        _, aim_ctrl = control.create_control(
+            aim_ctrl_name,
+            aim_offset_name,
+            target_matrix=self.aim_transform,
+            parent=self.ctrl_grp,
+        )
+        self.aim_ctrl = aim_ctrl
+
+    def _create_eye_ctrl(self):
+        ctrl_name = self._get_name("eye", self.config.get("control"))
+        offset_name = self._get_name("eye", self.config.get("offset"))
+        buffer_name = self._get_name("eye", self.config.get("buffer"))
+
+        target_mtx = list(self.transforms.values())[0]
+        self.eye_offset, self.eye_ctrl = control.create_control(
+            ctrl_name,
+            offset_name,
+            buffer_name=buffer_name,
+            target_matrix=target_mtx,
+            parent=self.ctrl_grp,
+        )
+
+    def _get_follow_parent_groups(self):
+        return [self.eye_offset]

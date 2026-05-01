@@ -25,7 +25,7 @@ class Guide(Main):
 
     def _define_parameters(self):
         super()._define_parameters()
-        self.add_parameter("type", "guide", at_type="string")
+        self.add_parameter("type", self.__class__.__name__, at_type="string")
         self.add_parameter("name", "guide", at_type="string")
         self.add_parameter("side", "M", at_type="string")
         self.add_parameter("index", 0, at_type="long")
@@ -113,14 +113,14 @@ class Guide(Main):
         for t in self.save_transform:
             full_name = self._get_name(description=t)
             if pm.objExists(full_name):
-                # pylint: disable-next=assignment-from-no-return,too-many-function-args
+                # pylint: disable-too-many-function-args
                 transforms[t] = pm.xform(full_name, q=True, ws=True, m=True)
 
         helpers = {}
         for h in self.save_helpers:
             full_name = self._get_name(description=h)
             if pm.objExists(full_name):
-                # pylint: disable-next=assignment-from-no-return,too-many-function-args
+                # pylint: disable-too-many-function-args
                 helpers[h] = pm.xform(full_name, q=True, ws=True, m=True)
 
         return transforms, helpers
@@ -201,6 +201,9 @@ class RigGuide(Main):
             "offset", self.default_config.get("offset", "offset"), "string"
         )
         self.add_parameter("setup", self.default_config.get("setup", "setup"), "string")
+        self.add_parameter(
+            "buffer", self.default_config.get("buffer", "buffer"), "string"
+        )
 
     def add_component(self, component=None, parent=None):
         if isinstance(component, Guide):
@@ -220,7 +223,6 @@ class RigGuide(Main):
         if pm.objExists(self.grp_name):
             group = pm.PyNode(self.grp_name)
         else:
-            # pylint: disable-next=assignment-from-no-return
             group = pm.group(n=self.grp_name, w=True, em=True)
         self.root_group = group
 
@@ -398,5 +400,6 @@ class RigGuide(Main):
             "model": self.get_parameter_value("model"),
             "offset": self.get_parameter_value("offset"),
             "setup": self.get_parameter_value("setup"),
+            "buffer": self.get_parameter_value("buffer"),
         }
         return config

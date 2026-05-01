@@ -35,7 +35,6 @@ class ArmRig(Rig):
         # IK setup
         ik_ctrl = self.ik_ctrls[0]
         pv_ctrl = self.ik_ctrls[1]
-        # pylint: disable-next=assignment-from-no-return
         self.ik_handle, _ = pm.ikHandle(
             sj=self.ik_jnts[0], ee=self.ik_jnts[-1], n=self._get_name("IK", "ikHandle")
         )
@@ -45,24 +44,19 @@ class ArmRig(Rig):
         self.ik_handle.v.set(0)
         pm.parent(self.ik_handle, ik_ctrl)
 
-        # pylint: disable-next=assignment-from-no-return
         rev = pm.createNode("reverse", n=self._get_name("ikfk_blend", "reverse"))
         pm.connectAttr(self.settings_ctrl.ikfk_blend, rev.inputX, f=1)
 
         # Create constrain
         for i in range(3):
-            # pylint: disable-next=assignment-from-no-return
             par_con = pm.parentConstraint(
                 self.fk_jnts[i], self.ik_jnts[i], self.jnts[i], mo=1
             )
             par_con.interpType.set(2)
-            # pylint: disable-next=assignment-from-no-return
             scale_con = pm.scaleConstraint(
                 self.fk_jnts[i], self.ik_jnts[i], self.jnts[i], mo=1
             )
-            # pylint: disable-next=assignment-from-no-return
             par_tgts = pm.parentConstraint(par_con, q=1, wal=1)
-            # pylint: disable-next=assignment-from-no-return
             scale_tgt = pm.scaleConstraint(scale_con, q=1, wal=1)
 
             pm.connectAttr(self.settings_ctrl.ikfk_blend, par_tgts[1], f=1)
@@ -124,7 +118,6 @@ class ArmRig(Rig):
         settings_ctrl_grp_name = self._get_name(
             self.name + "_settings", self.config.get("group")
         )
-        # pylint: disable-next=assignment-from-no-return
         self.settings_ctrl_grp = pm.group(
             n=settings_ctrl_grp_name, p=self.ctrl_grp, em=True
         )

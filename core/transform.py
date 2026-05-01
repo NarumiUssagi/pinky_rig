@@ -25,7 +25,6 @@ def get_offset_matrix(parent_name=None, out_vec=None):
 
         sel = om.MSelectionList()
         sel.add(parent_name)
-        # pylint: disable-next=assignment-from-no-return,too-many-function-args
         dag_path = sel.getDagPath(0)
         parent_m = dag_path.inclusiveMatrix()
         output_m = out_m * parent_m

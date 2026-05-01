@@ -1,5 +1,5 @@
 """
-ControlRig Class
+ShoulderRig Class
 """
 
 import pymel.core as pm
@@ -9,7 +9,7 @@ from ...builder.rig import Rig
 from ...core import transform
 
 
-class ControlRig(Rig):
+class ShoulderRig(Rig):
     def __init__(self, config=None, data=None, rig_builder=None):
         super().__init__(config=config, data=data, rig_builder=rig_builder)
         self.up_transform = self.helpers["upv"]
@@ -61,6 +61,3 @@ class ControlRig(Rig):
         for i, mtx in enumerate(mtxs):
             if i < 1:
                 self.transforms[keys[i]] = list(mtx)
-
-    def _get_follow_parent_groups(self):
-        return [self.eye_ctrl.getParent()]

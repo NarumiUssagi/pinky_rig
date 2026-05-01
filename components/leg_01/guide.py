@@ -26,8 +26,10 @@ class LegGuide(Guide):
     def _define_parameters(self):
         super()._define_parameters()
         self.add_parameter("ifk_blend", 1.0, "float")
-        self.add_parameter(" foot_roll", 0.0, "float")
-        self.add_parameter(" foot_bank", 0.0, "float")
+        self.add_parameter("foot_roll", 0.0, "float")
+        self.add_parameter("foot_roll_start", 35.0, "float")
+        self.add_parameter("foot_bank", 0.0, "float")
+        self.add_parameter("toe_tap", 0.0, "float")
 
     def add_objects(self):
         root_mtx = transform.get_offset_matrix(self.parent, (-2, -2, 0))

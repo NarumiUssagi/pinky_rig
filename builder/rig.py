@@ -74,9 +74,7 @@ class Rig(object):
             self.config.get("setup"), self.config.get("group")
         )
 
-        # pylint: disable-next=assignment-from-no-return
         self.ctrl_grp = pm.group(n=ctrl_grp_name, p=self.builder.root_ctrl, em=True)
-        # pylint: disable-next=assignment-from-no-return
         self.setup_grp = pm.group(n=setup_grp_name, p=self.builder.setup_grp, em=True)
 
     def _update_rotation(self):
@@ -110,7 +108,6 @@ class Rig(object):
 
     def _create_fk_ctrl(self):
         fk_ctrl_grp_name = self._get_name(self.name + "_FK", self.config.get("group"))
-        # pylint: disable-next=assignment-from-no-return
         self.fk_ctrl_grp = pm.group(n=fk_ctrl_grp_name, p=self.ctrl_grp, em=True)
 
         current_parent = self.fk_ctrl_grp
@@ -125,7 +122,6 @@ class Rig(object):
 
     def _create_ik_ctrl(self):
         ik_ctrl_grp_name = self._get_name(self.name + "_IK", self.config.get("group"))
-        # pylint: disable-next=assignment-from-no-return
         self.ik_ctrl_grp = pm.group(n=ik_ctrl_grp_name, p=self.ctrl_grp, em=True)
 
         ik_ctrl_name = self._get_name("IK", self.config.get("control"))
@@ -156,7 +152,6 @@ class Rig(object):
         settings_ctrl_grp_name = self._get_name(
             self.name + "_settings", self.config.get("group")
         )
-        # pylint: disable-next=assignment-from-no-return
         self.settings_ctrl_grp = pm.group(
             n=settings_ctrl_grp_name, p=self.ctrl_grp, em=True
         )
@@ -169,6 +164,36 @@ class Rig(object):
             target_matrix=list(self.transforms.values())[0],
             parent=self.settings_ctrl_grp,
         )
+
+    def connect(self):
+        if not self.parent:
+            return
+        if ":" not in self.parent:
+            print(f"{self.name} has invalid parent format: {self.parent}")
+            return
+
+        target = self.builder.find_relative(self.parent)
+        print(f"Connecting {self.name} to {self.parent} -> {target}")
+        if not target:
+            return
+
+        self._default_parent_connection(target)
+
+    def _default_parent_connection(self, target):
+        if self.jnts:
+            pm.parent(self.jnts[0], target)
+
+        for grp in self._get_follow_parent_groups():
+            if grp:
+                pm.parentConstraint(target, grp, mo=True)
+                pm.scaleConstraint(target, grp, mo=True)
+
+        if self.ik_jnts:
+            pm.parentConstraint(target, self.ik_jnts[0], mo=True)
+            pm.scaleConstraint(target, self.ik_jnts[0], mo=True)
+
+    def _get_follow_parent_groups(self):
+        return [self.fk_ctrl_grp, self.settings_ctrl_grp]
 
 
 class RigBuilder(object):
@@ -228,8 +253,9 @@ class RigBuilder(object):
             component.add_operators()
         for component in self.components:
             component.add_relations()
+        for component in self.components:
+            component.connect()
 
-        self._connect_components()
         self._finalize()
 
     def find_relative(self, ref_string):
@@ -253,28 +279,6 @@ class RigBuilder(object):
             ):
                 return component.relatives.get(output)
         return None
-
-    def _connect_components(self):
-        for component in self.components:
-            if not component.parent:
-                print(f"{component.name} has no parent, skipping connection")
-                continue
-            if ":" not in component.parent:
-                print(f"{component.name} has invalid parent format: {component.parent}")
-                continue
-            target = self.find_relative(component.parent)
-            print(f"Connecting {component.name} to {component.parent} -> {target}")
-            if not target:
-                continue
-            pm.parent(component.jnts[0], target)
-            pm.parentConstraint(target, component.fk_ctrl_grp, mo=True)
-            pm.scaleConstraint(target, component.fk_ctrl_grp, mo=True)
-            if component.ik_jnts:
-                pm.parentConstraint(target, component.ik_jnts[0], mo=True)
-                pm.scaleConstraint(target, component.ik_jnts[0], mo=True)
-            if component.settings_ctrl:
-                pm.parentConstraint(target, component.settings_ctrl_grp, mo=True)
-                pm.scaleConstraint(target, component.settings_ctrl_grp, mo=True)
 
     def _finalize(self):
         if pm.objExists(self.name + "_guide_grp"):
@@ -305,8 +309,6 @@ def create_group(name=None, parent=None):
         return pm.PyNode(name)
 
     if parent:
-        # pylint: disable-next=assignment-from-no-return
         return pm.group(n=name, em=True, p=parent)
     else:
-        # pylint: disable-next=assignment-from-no-return
         return pm.group(n=name, w=True, em=True)

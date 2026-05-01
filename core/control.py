@@ -8,6 +8,7 @@ import pymel.core as pm
 def create_control(
     name,
     offset_name,
+    buffer_name=None,
     target_matrix=None,
     target_position=None,
     shape="circle",
@@ -18,8 +19,10 @@ def create_control(
     else:
         ctrl = pm.circle(ch=False, n=name, nr=(1, 0, 0))[0]
 
-    # pylint: disable-next=assignment-from-no-return
-    offset_grp = pm.group(ctrl, n=offset_name)
+    if buffer_name:
+        pm.group(ctrl, n=buffer_name, w=True)
+
+    offset_grp = pm.group(n=offset_name, w=True)
 
     if target_matrix:
         pm.xform(offset_grp, a=True, ws=True, m=target_matrix)
