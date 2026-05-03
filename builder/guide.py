@@ -357,7 +357,7 @@ class RigGuide(Main):
                     comp_data["transforms"][key]
                 )
             for key in comp_data["helpers"]:
-                comp_data["helpers"][key] = transform.mirror_matrix_yz(
+                comp_data["helpers"][key] = transform.mirror_matrix_yz_translation_only(
                     comp_data["helpers"][key]
                 )
             instance.deserialize(comp_data)

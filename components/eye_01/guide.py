@@ -14,6 +14,10 @@ class EyeGuide(Guide):
         self.root = None
         self.aim = None
 
+    def _define_parameters(self):
+        super()._define_parameters()
+        self.add_parameter("aim_master", "", "string")
+
     def add_objects(self):
         root_mtx = transform.get_offset_matrix(self.parent, (-1, 0, 1))
         aim_mtx = transform.get_offset_matrix(self.parent, (-1, 0, 10))

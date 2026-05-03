@@ -169,8 +169,14 @@ class Rig(object):
         if not self.parent:
             return
         if ":" not in self.parent:
-            print(f"{self.name} has invalid parent format: {self.parent}")
-            return
+            if (
+                "_{}_{}".format(self.config.get("guide"), self.config.get("group"))
+                in self.parent
+            ):
+                return
+            else:
+                print(f"{self.name} has invalid parent format: {self.parent}")
+                return
 
         target = self.builder.find_relative(self.parent)
         print(f"Connecting {self.name} to {self.parent} -> {target}")

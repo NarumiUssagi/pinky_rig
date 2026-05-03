@@ -102,8 +102,19 @@ class LegRig(Rig):
         pm.connectAttr(ik_ctrl.foot_bank, bank_cod.colorIfFalseR)
         pm.connectAttr(ik_ctrl.foot_bank, bank_cod.colorIfTrueG)
         bank_cod.colorIfFalseG.set(0)
-        pm.connectAttr(bank_cod.outColorR, self.reverse_foot_locs[0].rz)
-        pm.connectAttr(bank_cod.outColorG, self.reverse_foot_locs[1].rz)
+
+        if self.side == "left":
+            rev_bank = pm.createNode(
+                "multiplyDivide", n=self._get_name("bank", "reverse")
+            )
+            rev_bank.input2.set(-1, -1, 0)
+            pm.connectAttr(bank_cod.outColorR, rev_bank.input1X)
+            pm.connectAttr(bank_cod.outColorG, rev_bank.input1Y)
+            pm.connectAttr(rev_bank.outputX, self.reverse_foot_locs[0].rz)
+            pm.connectAttr(rev_bank.outputY, self.reverse_foot_locs[1].rz)
+        else:
+            pm.connectAttr(bank_cod.outColorR, self.reverse_foot_locs[0].rz)
+            pm.connectAttr(bank_cod.outColorG, self.reverse_foot_locs[1].rz)
 
         # Toe Tap
         pm.connectAttr(ik_ctrl.toe_tap, self.toe_tip_ctrl.getParent().rz)

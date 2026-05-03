@@ -6,6 +6,7 @@ import pymel.core as pm
 import maya.api.OpenMaya as om
 
 from ...builder.rig import Rig
+from ...builder import naming
 from ...core import transform, control
 
 
@@ -13,9 +14,11 @@ class EyeRig(Rig):
     def __init__(self, config=None, data=None, rig_builder=None):
         super().__init__(config=config, data=data, rig_builder=rig_builder)
         self.aim_transform = self.helpers["aim"]
+        self.aim_master = self.data["parameters"].get("aim_master")
         self.eye_offset = None
         self.eye_ctrl = None
         self.aim_ctrl = None
+        self.aim_offset = None
 
     def add_objects(self):
         self._add_group()
@@ -70,7 +73,7 @@ class EyeRig(Rig):
         aim_ctrl_name = self._get_name("aim", self.config.get("control"))
         aim_offset_name = self._get_name("aim", self.config.get("offset"))
 
-        _, aim_ctrl = control.create_control(
+        self.aim_offset, aim_ctrl = control.create_control(
             aim_ctrl_name,
             aim_offset_name,
             target_matrix=self.aim_transform,
@@ -94,3 +97,14 @@ class EyeRig(Rig):
 
     def _get_follow_parent_groups(self):
         return [self.eye_offset]
+
+    def connect(self):
+        super().connect()
+        if not self.aim_master:
+            return
+        eye_master = self.builder.find_relative(self.aim_master)
+        if not eye_master:
+            print(f"Cannot find aim master: {self.aim_master}")
+            return
+        pm.parent(self.aim_offset, eye_master)
+        print(f"Connecting {self.name} aim to {self.aim_master} -> {eye_master}")

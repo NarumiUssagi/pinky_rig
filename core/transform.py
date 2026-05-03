@@ -146,3 +146,11 @@ def mirror_matrix_yz(matrix=None):
         ]
     )
     return matrix * mirror_m
+
+
+def mirror_matrix_yz_translation_only(matrix=None):
+    if not matrix:
+        return
+    m = list(matrix)
+    m[12] = -m[12]
+    return om.MMatrix(m)
