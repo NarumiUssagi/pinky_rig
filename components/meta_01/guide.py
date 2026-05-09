@@ -1,17 +1,17 @@
 """
-ChainGuide Class
+MetaGuide Class
 """
 
 from ...builder.guide import Guide
 from ...core import transform
 
 
-class ChainGuide(Guide):
-    def __init__(self, name="chain", side="middle", index=0, config=None):
+class MetaGuide(Guide):
+    def __init__(self, name="meta", side="middle", index=0, config=None):
         super().__init__(name=name, side=side, index=index, config=config)
         self.save_helpers = ["upv"]
         self.root = None
-        self.chains = []
+        self.metas = []
         self.upv = None
 
     @property
@@ -20,12 +20,13 @@ class ChainGuide(Guide):
 
     def _define_parameters(self):
         super()._define_parameters()
-        self.add_parameter("segment", 2, "long")
+        self.add_parameter("segment", 3, "long")
 
     def add_objects(self):
-        root_mtx = transform.get_offset_matrix(self.parent, (-1, 0, 0))
+        start = (self.segment) / 2
+        root_mtx = transform.get_offset_matrix(self.parent, (-1, 0, start))
 
-        self.save_transform = ["root"] + [f"chain{i}" for i in range(self.segment)]
+        self.save_transform = ["root"] + [f"meta{i}" for i in range(self.segment)]
 
         self.root = self.add_root(
             name=self._get_name("root"),
@@ -33,18 +34,18 @@ class ChainGuide(Guide):
             position=root_mtx,
         )
         for i in range(self.segment):
-            x_value = -1 - (i + 1)
-            chain_mtx = transform.get_offset_matrix(self.parent, (x_value, 0, 0))
-            parent_obj = self.root if i == 0 else self.chains[i - 1]
-            chain = self.add_loc(
-                self._get_name(f"chain{i}"),
+            z_value = start - (i + 1)
+            meta_mtx = transform.get_offset_matrix(self.parent, (-1, 0, z_value))
+            parent_obj = self.root if i == 0 else self.metas[i - 1]
+            meta = self.add_loc(
+                self._get_name(f"meta{i}"),
                 parent=parent_obj,
-                position=chain_mtx,
+                position=meta_mtx,
             )
-            self.chains.append(chain)
+            self.metas.append(meta)
 
         # Helper
-        upv_mtx = transform.get_offset_matrix(self.parent, (-1, 3, 0))
+        upv_mtx = transform.get_offset_matrix(self.parent, (-1, 3, start))
 
         self.upv = self.add_loc(
             self._get_name("upv"),

@@ -5,7 +5,7 @@ Joint
 import pymel.core as pm
 
 
-def create_joint_chain(transform, names=None, parent=None):
+def create_joint_chain(transform, names=None, parent=None, chain=True):
     jnts = []
 
     if isinstance(transform, dict):
@@ -18,7 +18,10 @@ def create_joint_chain(transform, names=None, parent=None):
         name = names[i] if names else str(key)
         jnt = pm.joint(n=name)
 
-        current_parent = parent if i == 0 else jnts[-1]
+        if chain:
+            current_parent = parent if i == 0 else jnts[-1]
+        else:
+            current_parent = parent
         if current_parent:
             pm.parent(jnt, current_parent)
 

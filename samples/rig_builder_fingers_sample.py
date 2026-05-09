@@ -1,5 +1,6 @@
 import sys
 import importlib
+import pymel.core as pm
 
 PATH = r"C:/Users/USER/Desktop/scripts"
 if PATH not in sys.path:
@@ -17,6 +18,7 @@ from pinky_rig.components.shoulder_01 import (
 )
 from pinky_rig.components.eye_01 import guide as eye_guide, rig as eye_rig
 from pinky_rig.components.chain_01 import guide as chain_guide, rig as chain_rig
+from pinky_rig.components.meta_01 import guide as meta_guide, rig as meta_rig
 import pinky_rig.core.transform as transform
 import pinky_rig.core.joint as joint
 
@@ -39,6 +41,8 @@ for mod in [
     chain_rig,
     eye_guide,
     eye_rig,
+    meta_guide,
+    meta_rig,
     transform,
     joint,
 ]:
@@ -53,6 +57,7 @@ GUIDE_REGISTRY = {
     "ShoulderGuide": shoulder_guide.ShoulderGuide,
     "ChainGuide": chain_guide.ChainGuide,
     "EyeGuide": eye_guide.EyeGuide,
+    "MetaGuide": meta_guide.MetaGuide,
 }
 
 RIG_REGISTRY = {
@@ -64,6 +69,7 @@ RIG_REGISTRY = {
     "ShoulderGuide": shoulder_rig.ShoulderRig,
     "ChainGuide": chain_rig.ChainRig,
     "EyeGuide": eye_rig.EyeRig,
+    "MetaGuide": meta_rig.MetaRig,
 }
 
 # 1. Build guides
@@ -71,6 +77,7 @@ root = guide.RigGuide("Pinky")
 spine = spine_guide.SpineGuide("Spine")
 clavicle = shoulder_guide.ShoulderGuide("Clavicle", "right")
 arm = arm_guide.ArmGuide("Arm", "right")
+meta = meta_guide.MetaGuide("Meta", "right")
 thumb_finger = chain_guide.ChainGuide("Thumb", "right")
 index_finger = chain_guide.ChainGuide("Index", "right")
 middle_finger = chain_guide.ChainGuide("Middle", "right")
@@ -90,12 +97,17 @@ root.add_component(eye_main, parent="Neck:middle:0:head")
 root.add_component(clavicle, parent="Spine:middle:0:chest")
 root.add_component(arm, parent="Clavicle:right:0:root")
 root.add_component(leg, parent="Spine:middle:0:root")
+root.add_component(meta, parent="Arm:right:0:wrist")
 root.add_component(thumb_finger, parent="Arm:right:0:wrist")
-root.add_component(index_finger, parent="Arm:right:0:wrist")
-root.add_component(middle_finger, parent="Arm:right:0:wrist")
-root.add_component(ring_finger, parent="Arm:right:0:wrist")
-root.add_component(pinky_finger, parent="Arm:right:0:wrist")
+root.add_component(index_finger, parent="Meta:right:0:root")
+root.add_component(middle_finger, parent="Meta:right:0:meta0")
+root.add_component(ring_finger, parent="Meta:right:0:meta1")
+root.add_component(pinky_finger, parent="Meta:right:0:meta2")
 root.draw()
+
+# 2.5 Place guides
+pm.setAttr("Thumb0_R_root_guide.t", (0, -1, 2))
+pm.setAttr("Thumb0_R_root_guide.r", (50, 50, 0))
 
 # 2. Mirror guides
 root.mirror_all(registry=GUIDE_REGISTRY)
