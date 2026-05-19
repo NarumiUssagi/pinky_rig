@@ -6,7 +6,7 @@ import pymel.core as pm
 import maya.api.OpenMaya as om
 
 from ...builder.rig import Rig
-from ...core import transform, control
+from ...core import transform, control, matrix_constraint
 
 
 class ArmRig(Rig):
@@ -29,8 +29,7 @@ class ArmRig(Rig):
     def add_operators(self):
         # FK constraints
         for fk_ctrl, fk_jnt in zip(self.fk_ctrls, self.fk_jnts):
-            pm.parentConstraint(fk_ctrl, fk_jnt, mo=True)
-            pm.scaleConstraint(fk_ctrl, fk_jnt, mo=True)
+            matrix_constraint.matrix_parent_constraint(driver=fk_ctrl, driven=fk_jnt)
 
         # IK setup
         ik_ctrl = self.ik_ctrls[0]
@@ -39,8 +38,11 @@ class ArmRig(Rig):
             sj=self.ik_jnts[0], ee=self.ik_jnts[-1], n=self._get_name("IK", "ikHandle")
         )
         pm.poleVectorConstraint(pv_ctrl, self.ik_handle)
-        pm.orientConstraint(ik_ctrl, self.ik_jnts[-1], mo=1)
-        pm.pointConstraint(ik_ctrl, self.ik_handle, mo=1)
+        matrix_constraint.matrix_parent_constraint(
+            ik_ctrl,
+            self.ik_jnts[-1],
+            skip_translate=["x", "y", "z"],
+        )
         self.ik_handle.v.set(0)
         pm.parent(self.ik_handle, ik_ctrl)
 
@@ -49,21 +51,15 @@ class ArmRig(Rig):
 
         # Create constrain
         for i in range(3):
-            par_con = pm.parentConstraint(
-                self.fk_jnts[i], self.ik_jnts[i], self.jnts[i], mo=1
-            )
-            par_con.interpType.set(2)
-            scale_con = pm.scaleConstraint(
-                self.fk_jnts[i], self.ik_jnts[i], self.jnts[i], mo=1
-            )
-            par_tgts = pm.parentConstraint(par_con, q=1, wal=1)
-            scale_tgt = pm.scaleConstraint(scale_con, q=1, wal=1)
-
-            pm.connectAttr(self.settings_ctrl.ikfk_blend, par_tgts[1], f=1)
-            pm.connectAttr(rev.outputX, par_tgts[0], f=1)
-            pm.connectAttr(self.settings_ctrl.ikfk_blend, scale_tgt[1], f=1)
-            pm.connectAttr(rev.outputX, scale_tgt[0], f=1)
             pm.connectAttr(rev.outputX, self.fk_ctrls[i].getParent().v, f=1)
+
+            matrix_constraint.matrix_blend_constraint(
+                driver_a=self.fk_jnts[i],
+                driver_b=self.ik_jnts[i],
+                driven=self.jnts[i],
+                name=self._get_name("ikfk_blend"),
+                driver_attr=self.settings_ctrl.ikfk_blend,
+            )
 
         pm.connectAttr(
             self.settings_ctrl.ikfk_blend, self.ik_ctrls[0].getParent().v, f=1

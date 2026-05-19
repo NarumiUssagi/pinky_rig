@@ -7,7 +7,7 @@ import maya.api.OpenMaya as om
 
 from ...builder.rig import Rig
 from ...builder import naming
-from ...core import transform, control
+from ...core import transform, control, matrix_constraint
 
 
 class EyeRig(Rig):
@@ -28,20 +28,25 @@ class EyeRig(Rig):
         self._create_aim_ctrl()
 
     def add_operators(self):
-        pm.parentConstraint(self.eye_ctrl, self.jnts[0], mo=True)
-        pm.scaleConstraint(self.eye_ctrl, self.jnts[0], mo=True)
+        matrix_constraint.matrix_parent_constraint(self.eye_ctrl, self.jnts[0])
 
         # Aim constraint
         aim_vector = (1, 0, 0) if self.side == "right" else (-1, 0, 0)
 
-        pm.aimConstraint(
-            self.aim_ctrl,
-            self.eye_ctrl.getParent(),
-            mo=True,
-            aimVector=aim_vector,
-            upVector=(0, 1, 0),
-            worldUpType="scene",
-        )
+        if self.side == "left":
+            matrix_constraint.matrix_aim_constraint(
+                driver=self.aim_ctrl,
+                driven=self.eye_ctrl.getParent(),
+                up_object=self.eye_offset,
+                primary_axis=(-1, 0, 0),
+            )
+        else:
+            matrix_constraint.matrix_aim_constraint(
+                driver=self.aim_ctrl,
+                driven=self.eye_ctrl.getParent(),
+                up_object=self.eye_offset,
+                primary_axis=(1, 0, 0),
+            )
 
     def _update_rotation(self):
         positions = [

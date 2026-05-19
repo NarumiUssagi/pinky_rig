@@ -6,7 +6,7 @@ import pymel.core as pm
 import maya.api.OpenMaya as om
 
 from ...builder.rig import Rig
-from ...core import transform
+from ...core import transform, matrix_constraint
 
 
 class NeckRig(Rig):
@@ -22,12 +22,10 @@ class NeckRig(Rig):
 
     def add_operators(self):
         for jnt, ctrl in zip(self.fk_jnts, self.fk_ctrls):
-            pm.parentConstraint(ctrl, jnt, mo=True)
-            pm.scaleConstraint(ctrl, jnt, mo=True)
+            matrix_constraint.matrix_parent_constraint(ctrl, jnt)
 
         for jnt, fk_jnt in zip(self.jnts, self.fk_jnts):
-            pm.parentConstraint(fk_jnt, jnt, mo=True)
-            pm.scaleConstraint(fk_jnt, jnt, mo=True)
+            matrix_constraint.matrix_parent_constraint(fk_jnt, jnt)
 
     def _update_rotation(self):
         positions = [

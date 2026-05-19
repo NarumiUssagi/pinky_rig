@@ -6,7 +6,7 @@ import pymel.core as pm
 import maya.api.OpenMaya as om
 
 from ...builder.rig import Rig
-from ...core import transform, control
+from ...core import transform, control, matrix_constraint
 
 
 class LegRig(Rig):
@@ -26,16 +26,15 @@ class LegRig(Rig):
         self._create_joints()
         self._create_fk_chain()
         self._create_ik_chain()
-        self._create_fk_ctrl()
-        self._create_ik_ctrl()
-        self._create_settings_ctrl()
+        self._create_fk_ctrl(skip_last=1)
+        self._create_ik_ctrl(target_index=-3, pv_chain_slice=slice(None, -2))
+        self._create_settings_ctrl(left_offset=(0, 0, -2), right_offset=(0, 0, 2))
         self._create_reverse_foot_ctrl()
 
     def add_operators(self):
         # FK constraints
         for fk_ctrl, fk_jnt in zip(self.fk_ctrls, self.fk_jnts):
-            pm.parentConstraint(fk_ctrl, fk_jnt, mo=True)
-            pm.scaleConstraint(fk_ctrl, fk_jnt, mo=True)
+            matrix_constraint.matrix_parent_constraint(fk_ctrl, fk_jnt)
 
         # IK setup
         ik_ctrl = self.ik_ctrls[0]
@@ -57,7 +56,12 @@ class LegRig(Rig):
         )
 
         pm.poleVectorConstraint(pv_ctrl, self.ik_handle)
-        pm.scaleConstraint(ik_ctrl, self.ik_jnts[-3], mo=1)
+        matrix_constraint.matrix_parent_constraint(
+            ik_ctrl,
+            self.ik_jnts[-3],
+            skip_rotate=["x", "y", "z"],
+            skip_translate=["x", "y", "z"],
+        )
         self.ik_handle.v.set(0)
         toe_ik_handle.v.set(0)
         toe_end_ik_handle.v.set(0)
@@ -70,21 +74,14 @@ class LegRig(Rig):
 
         # Create constrain
         for i in range(4):
-            par_con = pm.parentConstraint(
-                self.fk_jnts[i], self.ik_jnts[i], self.jnts[i], mo=1
-            )
-            par_con.interpType.set(2)
-            scale_con = pm.scaleConstraint(
-                self.fk_jnts[i], self.ik_jnts[i], self.jnts[i], mo=1
-            )
-            par_tgts = pm.parentConstraint(par_con, q=1, wal=1)
-            scale_tgt = pm.scaleConstraint(scale_con, q=1, wal=1)
-
-            pm.connectAttr(self.settings_ctrl.ikfk_blend, par_tgts[1], f=1)
-            pm.connectAttr(rev.outputX, par_tgts[0], f=1)
-            pm.connectAttr(self.settings_ctrl.ikfk_blend, scale_tgt[1], f=1)
-            pm.connectAttr(rev.outputX, scale_tgt[0], f=1)
             pm.connectAttr(rev.outputX, self.fk_ctrls[i].getParent().v, f=1)
+            matrix_constraint.matrix_blend_constraint(
+                driver_a=self.fk_jnts[i],
+                driver_b=self.ik_jnts[i],
+                driven=self.jnts[i],
+                name=self._get_name("ikfk_blend"),
+                driver_attr=self.settings_ctrl.ikfk_blend,
+            )
 
         pm.connectAttr(
             self.settings_ctrl.ikfk_blend, self.ik_ctrls[0].getParent().v, f=1
@@ -247,72 +244,6 @@ class LegRig(Rig):
         for i, mtx in enumerate(mtxs):
             if i < 5:
                 self.transforms[keys[i]] = list(mtx)
-
-    def _create_ik_ctrl(self):
-        ik_ctrl_grp_name = self._get_name(self.name + "_IK", self.config.get("group"))
-        self.ik_ctrl_grp = pm.group(n=ik_ctrl_grp_name, p=self.ctrl_grp, em=True)
-
-        ik_ctrl_name = self._get_name("IK", self.config.get("control"))
-        pv_ctrl_name = self._get_name("PV", self.config.get("control"))
-        ik_offset_name = self._get_name("IK", self.config.get("offset"))
-        pv_offset_name = self._get_name("PV", self.config.get("offset"))
-
-        positions = [pm.xform(j, ws=1, q=1, t=1) for j in self.ik_jnts][:-2]
-        pv_pos = transform.find_pole_vector_position(
-            positions, distance_multiplier=1.0, prefer_axis=self.pref_axis
-        )
-
-        _, ik_ctrl = control.create_control(
-            ik_ctrl_name,
-            ik_offset_name,
-            target_matrix=list(self.transforms.values())[-3],
-            parent=self.ik_ctrl_grp,
-        )
-        _, pv_ctrl = control.create_control(
-            pv_ctrl_name,
-            pv_offset_name,
-            target_position=pv_pos,
-            parent=self.ik_ctrl_grp,
-        )
-        self.ik_ctrls = [ik_ctrl, pv_ctrl]
-
-    def _create_fk_ctrl(self):
-        fk_ctrl_grp_name = self._get_name(self.name + "_FK", self.config.get("group"))
-        self.fk_ctrl_grp = pm.group(n=fk_ctrl_grp_name, p=self.ctrl_grp, em=True)
-
-        current_parent = self.fk_ctrl_grp
-        for i, (guide, mtx) in enumerate(self.transforms.items()):
-            if i < len(self.transforms.items()) - 1:
-                ctrl_name = self._get_name(guide + "_FK", self.config.get("control"))
-                offset_name = self._get_name(guide + "_FK", self.config.get("offset"))
-                _, ctrl = control.create_control(
-                    ctrl_name, offset_name, target_matrix=mtx, parent=current_parent
-                )
-                current_parent = ctrl
-                self.fk_ctrls.append(ctrl)
-
-    def _create_settings_ctrl(self):
-        settings_ctrl_grp_name = self._get_name(
-            self.name + "_settings", self.config.get("group")
-        )
-        self.settings_ctrl_grp = pm.group(
-            n=settings_ctrl_grp_name, p=self.ctrl_grp, em=True
-        )
-        if self.side == "right":
-            mtx = transform.get_offset_matrix(self.jnts[0], (0, 0, 2))
-        elif self.side == "left":
-            mtx = transform.get_offset_matrix(self.jnts[0], (0, 0, -2))
-        else:
-            mtx = transform.get_offset_matrix(self.jnts[0], (0, 2, 0))
-
-        ctrl_name = self._get_name("settings", self.config.get("control"))
-        offset_name = self._get_name("settings", self.config.get("offset"))
-        _, self.settings_ctrl = control.create_control(
-            ctrl_name,
-            offset_name,
-            target_matrix=mtx,
-            parent=self.settings_ctrl_grp,
-        )
 
     def _create_reverse_foot_ctrl(self):
         loc_transform = [

@@ -32,6 +32,8 @@ class Guide(Main):
 
     def add_root(self, name="root", parent=None, position=None):
         root = self.add_loc(name, parent, position)
+        if not root:
+            return
         # Add parameter to attributes
         for parameter in self.values:
             if root.hasAttr(parameter):
@@ -55,6 +57,9 @@ class Guide(Main):
     def add_loc(self, name, parent=None, position=None):
         loc = pm.spaceLocator(name=name)  # pylint: disable=assignment-from-no-return
         if parent:
+            if not pm.objExists(parent):
+                print(f"Parent {parent} doesn't exist")
+                return
             loc.setParent(parent)
         mtx = position if position else pm.datatypes.Matrix()
         pm.xform(loc, a=1, ws=1, m=mtx)
@@ -168,6 +173,10 @@ class Guide(Main):
             self.set_parameter_value(name, value)
         self.parent = data.get("parent")
 
+    @property
+    def root_name(self):
+        return self._get_name("root")
+
 
 class RigGuide(Main):
     def __init__(self, name="rig"):
@@ -244,15 +253,27 @@ class RigGuide(Main):
         return group
 
     def _add_objects(self):
+        missing = []
+
         for component in self.components:
             original_parent = component.parent
             scene_parent = original_parent
             if original_parent and ":" in original_parent:
                 scene_parent = self._resolve_parent(original_parent)
+                if not pm.objExists(scene_parent):
+                    missing.append((component.root_name, original_parent, scene_parent))
+
             elif not original_parent:
                 scene_parent = self.grp_name
             component.draw(scene_parent)
             component.parent = original_parent
+
+        if missing:
+            msg = "Failed to resolve parents for components:\n" + "\n".join(
+                f"  {root} -> '{decl}' (resolved: '{tgt}')"
+                for root, decl, tgt in missing
+            )
+            raise RuntimeError(msg)
 
     def draw(self):
         self._add_group()

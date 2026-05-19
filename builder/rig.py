@@ -5,7 +5,7 @@ Rig Class
 import pymel.core as pm
 
 from . import naming
-from ..core import joint, control, transform
+from ..core import joint, control, transform, matrix_constraint
 
 
 class Rig(object):
@@ -75,7 +75,7 @@ class Rig(object):
         )
 
         self.ctrl_grp = pm.group(n=ctrl_grp_name, p=self.builder.root_ctrl, em=True)
-        self.setup_grp = pm.group(n=setup_grp_name, p=self.builder.setup_grp, em=True)
+        # self.setup_grp = pm.group(n=setup_grp_name, p=self.builder.setup_grp, em=True)
 
     def _update_rotation(self):
         pass
@@ -106,12 +106,15 @@ class Rig(object):
         for j in self.ik_jnts:
             j.v.set(0)
 
-    def _create_fk_ctrl(self):
+    def _create_fk_ctrl(self, skip_last=0):
         fk_ctrl_grp_name = self._get_name(self.name + "_FK", self.config.get("group"))
         self.fk_ctrl_grp = pm.group(n=fk_ctrl_grp_name, p=self.ctrl_grp, em=True)
 
         current_parent = self.fk_ctrl_grp
-        for _, (guide, mtx) in enumerate(self.transforms.items()):
+        items = list(self.transforms.items())
+        if skip_last:
+            items = items[:-skip_last]
+        for guide, mtx in items:
             ctrl_name = self._get_name(guide + "_FK", self.config.get("control"))
             offset_name = self._get_name(guide + "_FK", self.config.get("offset"))
             _, ctrl = control.create_control(
@@ -120,7 +123,7 @@ class Rig(object):
             current_parent = ctrl
             self.fk_ctrls.append(ctrl)
 
-    def _create_ik_ctrl(self):
+    def _create_ik_ctrl(self, target_index=-1, pv_chain_slice=None):
         ik_ctrl_grp_name = self._get_name(self.name + "_IK", self.config.get("group"))
         self.ik_ctrl_grp = pm.group(n=ik_ctrl_grp_name, p=self.ctrl_grp, em=True)
 
@@ -130,6 +133,9 @@ class Rig(object):
         pv_offset_name = self._get_name("PV", self.config.get("offset"))
 
         positions = [pm.xform(j, ws=1, q=1, t=1) for j in self.ik_jnts]
+        if pv_chain_slice is not None:
+            positions = positions[pv_chain_slice]
+
         pv_pos = transform.find_pole_vector_position(
             positions, distance_multiplier=1.0, prefer_axis=self.pref_axis
         )
@@ -137,7 +143,7 @@ class Rig(object):
         _, ik_ctrl = control.create_control(
             ik_ctrl_name,
             ik_offset_name,
-            target_matrix=list(self.transforms.values())[-1],
+            target_matrix=list(self.transforms.values())[target_index],
             parent=self.ik_ctrl_grp,
         )
         _, pv_ctrl = control.create_control(
@@ -148,7 +154,9 @@ class Rig(object):
         )
         self.ik_ctrls = [ik_ctrl, pv_ctrl]
 
-    def _create_settings_ctrl(self):
+    def _create_settings_ctrl(
+        self, left_offset=(0, 0, 2), right_offset=(0, 0, -2), middle_offset=(0, 2, 0)
+    ):
         settings_ctrl_grp_name = self._get_name(
             self.name + "_settings", self.config.get("group")
         )
@@ -156,12 +164,19 @@ class Rig(object):
             n=settings_ctrl_grp_name, p=self.ctrl_grp, em=True
         )
 
+        if self.side == "right":
+            mtx = transform.get_offset_matrix(self.jnts[0], right_offset)
+        elif self.side == "left":
+            mtx = transform.get_offset_matrix(self.jnts[0], left_offset)
+        else:
+            mtx = transform.get_offset_matrix(self.jnts[0], middle_offset)
+
         ctrl_name = self._get_name("settings", self.config.get("control"))
         offset_name = self._get_name("settings", self.config.get("offset"))
         _, self.settings_ctrl = control.create_control(
             ctrl_name,
             offset_name,
-            target_matrix=list(self.transforms.values())[0],
+            target_matrix=mtx,
             parent=self.settings_ctrl_grp,
         )
 
@@ -191,12 +206,10 @@ class Rig(object):
 
         for grp in self._get_follow_parent_groups():
             if grp:
-                pm.parentConstraint(target, grp, mo=True)
-                pm.scaleConstraint(target, grp, mo=True)
+                matrix_constraint.matrix_parent_constraint(target, grp)
 
         if self.ik_jnts:
-            pm.parentConstraint(target, self.ik_jnts[0], mo=True)
-            pm.scaleConstraint(target, self.ik_jnts[0], mo=True)
+            matrix_constraint.matrix_parent_constraint(target, self.ik_jnts[0])
 
     def _get_follow_parent_groups(self):
         return [self.fk_ctrl_grp, self.settings_ctrl_grp]
@@ -256,11 +269,11 @@ class RigBuilder(object):
         for component in self.components:
             component.add_attributes()
         for component in self.components:
-            component.add_operators()
-        for component in self.components:
             component.add_relations()
         for component in self.components:
             component.connect()
+        for component in self.components:
+            component.add_operators()
 
         self._finalize()
 

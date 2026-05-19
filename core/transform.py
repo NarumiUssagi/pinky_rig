@@ -154,3 +154,12 @@ def mirror_matrix_yz_translation_only(matrix=None):
     m = list(matrix)
     m[12] = -m[12]
     return om.MMatrix(m)
+
+
+def get_chain_axes(side):
+    """Return (aim_axis, up_axis) for the given side."""
+    return {
+        "right": ("+x", "+y"),
+        "left": ("-x", "-y"),
+        "middle": ("+x", "+y"),
+    }.get(side, ("+x", "+y"))

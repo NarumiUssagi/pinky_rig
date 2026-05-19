@@ -6,7 +6,7 @@ import pymel.core as pm
 import maya.api.OpenMaya as om
 
 from ...builder.rig import Rig
-from ...core import transform, joint, control
+from ...core import transform, joint, control, matrix_constraint
 
 
 class MetaRig(Rig):
@@ -149,13 +149,11 @@ class MetaRig(Rig):
 
         for grp in self._get_follow_parent_groups():
             if grp:
-                pm.parentConstraint(target, grp, mo=True)
-                pm.scaleConstraint(target, grp, mo=True)
+                matrix_constraint.matrix_parent_constraint(target, grp)
 
     def _get_follow_parent_groups(self):
         return [self.meta_ctrl_grp]
 
     def add_operators(self):
         for loc, jnt in zip(self.meta_locs, self.jnts):
-            pm.parentConstraint(loc, jnt, mo=True)
-            pm.scaleConstraint(loc, jnt, mo=True)
+            matrix_constraint.matrix_parent_constraint(loc, jnt)
