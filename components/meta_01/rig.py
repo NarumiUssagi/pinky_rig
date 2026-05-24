@@ -127,21 +127,28 @@ class MetaRig(Rig):
         )
         for i, loc in enumerate(self.meta_locs):
             loc.v.set(0)
-            point_con = pm.pointConstraint(
-                self.meta_offset, self.meta_ctrl, loc, mo=True
+            matrix_constraint.matrix_blend_constraint(
+                driver_a=self.meta_offset,
+                driver_b=self.meta_ctrl,
+                driven=loc,
+                translate_value=0,
+                rotate_value=i / max(len(self.meta_locs) - 1, 1),
+                scale_value=0,
+                skip_translate=("x", "y", "z"),
+                skip_scale=("x", "y", "z"),
+                name=self._get_name(f"meta{i}_orient"),
             )
-            orient_con = pm.orientConstraint(
-                self.meta_offset, self.meta_ctrl, loc, mo=True
+            matrix_constraint.matrix_blend_constraint(
+                driver_a=self.meta_offset,
+                driver_b=self.meta_ctrl,
+                driven=loc,
+                translate_value=i / max(len(self.meta_locs) - 1, 1),
+                rotate_value=0,
+                scale_value=0,
+                skip_rotate=("x", "y", "z"),
+                skip_scale=("x", "y", "z"),
+                name=self._get_name(f"meta{i}_point"),
             )
-            orient_con.interpType.set(2)
-
-            value = i / (len(self.meta_locs) - 1)
-            point_tgts = pm.pointConstraint(point_con, q=1, wal=1)
-            orient_tgts = pm.orientConstraint(orient_con, q=1, wal=1)
-            point_tgts[1].set(value)
-            point_tgts[0].set(1 - value)
-            orient_tgts[1].set(value)
-            orient_tgts[0].set(1 - value)
 
     def _default_parent_connection(self, target):
         if self.jnts:

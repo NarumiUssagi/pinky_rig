@@ -168,6 +168,10 @@ def matrix_blend_constraint(
     driver_a,
     driver_b,
     driven,
+    value=None,
+    translate_value=None,
+    rotate_value=None,
+    scale_value=None,
     driver_attr=None,
     name="",
     skip_translate=None,
@@ -175,9 +179,7 @@ def matrix_blend_constraint(
     skip_scale=None,
     maintain_offset=True,
 ):
-
     is_joint = mc.nodeType(str(driven)) == "joint"
-
     if not name:
         name = f"{driver_a}_{driver_b}_to_{driven}"
 
@@ -185,30 +187,49 @@ def matrix_blend_constraint(
     skip_rotate = skip_rotate or []
     skip_scale = skip_scale or []
 
-    driver_a_local_mtx = mc.createNode("multMatrix", n=f"{name}_driverA_local_mmx")
-    driver_b_local_mtx = mc.createNode("multMatrix", n=f"{name}_driverB_local_mmx")
+    # --- driver matrices → local space ---
+    driver_a_local = mc.createNode("multMatrix", n=f"{name}_driverA_local_mmx")
+    driver_b_local = mc.createNode("multMatrix", n=f"{name}_driverB_local_mmx")
+    mc.connectAttr(f"{driver_a}.worldMatrix[0]", f"{driver_a_local}.matrixIn[0]")
+    mc.connectAttr(f"{driver_b}.worldMatrix[0]", f"{driver_b_local}.matrixIn[0]")
+    mc.connectAttr(f"{driven}.parentInverseMatrix[0]", f"{driver_a_local}.matrixIn[1]")
+    mc.connectAttr(f"{driven}.parentInverseMatrix[0]", f"{driver_b_local}.matrixIn[1]")
+
+    # --- blendMatrix: input = driver_a, target[0] = driver_b ---
     bmx = mc.createNode("blendMatrix", n=f"{name}_bmx")
+    mc.connectAttr(f"{driver_a_local}.matrixSum", f"{bmx}.inputMatrix")
+    mc.connectAttr(f"{driver_b_local}.matrixSum", f"{bmx}.target[0].targetMatrix")
+
+    # --- per-channel weights (individual overrides value) ---
+    def _resolve(per_channel):
+        return per_channel if per_channel is not None else value
+
+    t_w = _resolve(translate_value)
+    r_w = _resolve(rotate_value)
+    s_w = _resolve(scale_value)
+    if t_w is not None:
+        mc.setAttr(f"{bmx}.target[0].translateWeight", t_w)
+    if r_w is not None:
+        mc.setAttr(f"{bmx}.target[0].rotateWeight", r_w)
+    if s_w is not None:
+        mc.setAttr(f"{bmx}.target[0].scaleWeight", s_w)
+
+    # --- core chain: offset * blend_output (both local) ---
+    # NOTE: weights set above, so bmx.outputMatrix now reflects the build-time blend.
+    mmx = mc.createNode("multMatrix", n=f"{name}_mmx")
+    if maintain_offset:
+        blend_mtx = om.MMatrix(mc.getAttr(f"{bmx}.outputMatrix"))
+        driven_local = om.MMatrix(mc.getAttr(f"{driven}.matrix"))
+        offset = driven_local * blend_mtx.inverse()
+        mc.setAttr(f"{mmx}.matrixIn[0]", list(offset), type="matrix")
+    mc.connectAttr(f"{bmx}.outputMatrix", f"{mmx}.matrixIn[1]", f=True)
+
+    # --- decompose for t / s (and r if not joint) ---
     dmx = mc.createNode("decomposeMatrix", n=f"{name}_dmx")
-
-    # Mult matrix
-    mc.connectAttr(f"{driver_a}.worldMatrix", f"{driver_a_local_mtx}.matrixIn[0]")
-    mc.connectAttr(f"{driver_b}.worldMatrix", f"{driver_b_local_mtx}.matrixIn[0]")
-    mc.connectAttr(
-        f"{driven}.parentInverseMatrix[0]", f"{driver_a_local_mtx}.matrixIn[1]"
-    )
-    mc.connectAttr(
-        f"{driven}.parentInverseMatrix[0]", f"{driver_b_local_mtx}.matrixIn[1]"
-    )
-
-    # Blend matrix
-    mc.connectAttr(f"{driver_a_local_mtx}.matrixSum", f"{bmx}.inputMatrix")
-    mc.connectAttr(f"{driver_b_local_mtx}.matrixSum", f"{bmx}.target[0].targetMatrix")
-
-    # Decompose matrix
-    mc.connectAttr(f"{bmx}.outputMatrix", f"{dmx}.inputMatrix", f=True)
+    mc.connectAttr(f"{mmx}.matrixSum", f"{dmx}.inputMatrix", f=True)
     mc.connectAttr(f"{driven}.rotateOrder", f"{dmx}.inputRotateOrder", f=True)
 
-    # For joints: peel jointOrient off the local matrix to get pure rotate
+    # --- joint: peel jointOrient off rotate (reads mmx, includes offset) ---
     rot_dmx = dmx
     if is_joint and any(a not in skip_rotate for a in ("x", "y", "z")):
         jo = mc.getAttr(f"{driven}.jointOrient")[0]
@@ -219,14 +240,14 @@ def matrix_blend_constraint(
             .asMatrix()
             .inverse()
         )
-        rot_mmx = mc.createNode("multMatrix", n=name + "_rotate_mmx")
-        mc.connectAttr(f"{bmx}.outputMatrix", f"{rot_mmx}.matrixIn[0]", f=True)
+        rot_mmx = mc.createNode("multMatrix", n=f"{name}_rotate_mmx")
+        mc.connectAttr(f"{mmx}.matrixSum", f"{rot_mmx}.matrixIn[0]", f=True)
         mc.setAttr(f"{rot_mmx}.matrixIn[1]", list(jo_inv), type="matrix")
-
-        rot_dmx = mc.createNode("decomposeMatrix", n=name + "_rotate_dmx")
+        rot_dmx = mc.createNode("decomposeMatrix", n=f"{name}_rotate_dmx")
         mc.connectAttr(f"{rot_mmx}.matrixSum", f"{rot_dmx}.inputMatrix", f=True)
         mc.connectAttr(f"{driven}.rotateOrder", f"{rot_dmx}.inputRotateOrder", f=True)
 
+    # --- connect channels ---
     for axis in ("x", "y", "z"):
         A = axis.upper()
         if axis not in skip_translate:
@@ -236,6 +257,7 @@ def matrix_blend_constraint(
         if axis not in skip_scale:
             mc.connectAttr(f"{dmx}.outputScale{A}", f"{driven}.s{axis}", f=True)
 
+    # --- optional envelope driver (global multiplier on all channels) ---
     if driver_attr:
         if not mc.objExists(str(driver_attr)):
             raise ValueError(f"driver_attr does not exist: {driver_attr}")
