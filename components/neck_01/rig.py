@@ -39,3 +39,6 @@ class NeckRig(Rig):
         keys = list(self.transforms.keys())
         for i, mtx in enumerate(mtxs):
             self.transforms[keys[i]] = list(mtx)
+
+    def _resolve_size(self):
+        return round(self.segment_length("root", "head") / 10, 3) * 5

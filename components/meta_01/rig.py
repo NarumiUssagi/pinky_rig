@@ -113,11 +113,19 @@ class MetaRig(Rig):
         meta_ctrl_name = self._get_name("meta", self.config.get("control"))
         meta_offset_name = self._get_name("meta", self.config.get("offset"))
 
+        angle = 90 if self.side == "right" else -90
+
         self.meta_offset, self.meta_ctrl = control.create_control(
             meta_ctrl_name,
             meta_offset_name,
             target_matrix=self.transforms[f"meta{self.segment-1}"],
             parent=self.meta_ctrl_grp,
+            shape="curved_two_arrows_thin",
+            lock_attrs=["sx", "sy", "sz", "v"],
+            rotate_axis="x",
+            rotate_angle=angle,
+            color_rgb=self._resolve_color(),
+            size=self._resolve_size(),
         )
 
         # Create rotate blend joint
@@ -131,23 +139,23 @@ class MetaRig(Rig):
                 driver_a=self.meta_offset,
                 driver_b=self.meta_ctrl,
                 driven=loc,
-                translate_value=0,
-                rotate_value=i / max(len(self.meta_locs) - 1, 1),
-                scale_value=0,
-                skip_translate=("x", "y", "z"),
+                value=i / max(len(self.meta_locs) - 1, 1),
+                blend_rotate=False,
+                blend_scale=False,
+                skip_rotate=("x", "y", "z"),
                 skip_scale=("x", "y", "z"),
-                name=self._get_name(f"meta{i}_orient"),
+                name="orient",
             )
             matrix_constraint.matrix_blend_constraint(
                 driver_a=self.meta_offset,
                 driver_b=self.meta_ctrl,
                 driven=loc,
-                translate_value=i / max(len(self.meta_locs) - 1, 1),
-                rotate_value=0,
-                scale_value=0,
-                skip_rotate=("x", "y", "z"),
+                value=i / max(len(self.meta_locs) - 1, 1),
+                blend_translate=False,
+                blend_scale=False,
+                skip_translate=("x", "y", "z"),
                 skip_scale=("x", "y", "z"),
-                name=self._get_name(f"meta{i}_point"),
+                name="orient",
             )
 
     def _default_parent_connection(self, target):
@@ -164,3 +172,7 @@ class MetaRig(Rig):
     def add_operators(self):
         for loc, jnt in zip(self.meta_locs, self.jnts):
             matrix_constraint.matrix_parent_constraint(loc, jnt)
+
+    def _resolve_size(self):
+        segment = self.data["parameters"].get("segment", None)
+        return round(self.segment_length("root", f"meta{int(segment)-1}") / 10, 3) * 1.5

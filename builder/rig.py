@@ -3,9 +3,12 @@ Rig Class
 """
 
 import pymel.core as pm
+import maya.api.OpenMaya as om
 
 from . import naming
 from ..core import joint, control, transform, matrix_constraint
+
+_SIDE_COLOR = {"right": (1, 0, 0), "left": (0, 0, 1), "middle": (1, 1, 0)}
 
 
 class Rig(object):
@@ -112,13 +115,21 @@ class Rig(object):
 
         current_parent = self.fk_ctrl_grp
         items = list(self.transforms.items())
+
         if skip_last:
             items = items[:-skip_last]
         for guide, mtx in items:
             ctrl_name = self._get_name(guide + "_FK", self.config.get("control"))
             offset_name = self._get_name(guide + "_FK", self.config.get("offset"))
             _, ctrl = control.create_control(
-                ctrl_name, offset_name, target_matrix=mtx, parent=current_parent
+                ctrl_name,
+                offset_name,
+                target_matrix=mtx,
+                parent=current_parent,
+                rotate_axis="z",
+                rotate_angle=90,
+                color_rgb=self._resolve_color(),
+                size=self._resolve_size(),
             )
             current_parent = ctrl
             self.fk_ctrls.append(ctrl)
@@ -145,12 +156,17 @@ class Rig(object):
             ik_offset_name,
             target_matrix=list(self.transforms.values())[target_index],
             parent=self.ik_ctrl_grp,
+            shape="box",
+            color_rgb=self._resolve_color(),
         )
         _, pv_ctrl = control.create_control(
             pv_ctrl_name,
             pv_offset_name,
             target_position=pv_pos,
             parent=self.ik_ctrl_grp,
+            shape="locator",
+            color_rgb=self._resolve_color(),
+            size=self._resolve_size() * 0.5,
         )
         self.ik_ctrls = [ik_ctrl, pv_ctrl]
 
@@ -178,6 +194,10 @@ class Rig(object):
             offset_name,
             target_matrix=mtx,
             parent=self.settings_ctrl_grp,
+            shape="cross_thin",
+            lock_attrs=["tx", "ty", "tz", "rx", "ry", "rz", "sx", "sy", "sz", "v"],
+            color_rgb=self._resolve_color(),
+            size=self._resolve_size() * 0.25,
         )
 
     def connect(self):
@@ -214,6 +234,19 @@ class Rig(object):
     def _get_follow_parent_groups(self):
         return [self.fk_ctrl_grp, self.settings_ctrl_grp]
 
+    def _resolve_color(self, color_rgb=None):
+        if color_rgb is not None:
+            return color_rgb
+        return _SIDE_COLOR.get(self.side, (0, 0, 1))
+
+    def _resolve_size(self):
+        return 1.0
+
+    def segment_length(self, key_a, key_b):
+        a = om.MVector(self.transforms[key_a][12:15])
+        b = om.MVector(self.transforms[key_b][12:15])
+        return (b - a).length()
+
 
 class RigBuilder(object):
     def __init__(self, config=None, data=None, registry=None):
@@ -231,6 +264,7 @@ class RigBuilder(object):
         self.setup_grp = None
 
         self.root_ctrl = None
+        self.root_extra_ctrl = None
 
     def _add_group(self):
         root_grp_name = (
@@ -307,9 +341,25 @@ class RigBuilder(object):
     def _create_root_ctrl(self):
         root_name = self._get_name("Global", self.config.get("control"))
         root_offset_name = self._get_name("Global", self.config.get("group"))
-        self.root_ctrl = control.create_control(
-            name=root_name, offset_name=root_offset_name, parent=self.control_grp
-        )[1]
+        root_extra_name = self._get_name("GlobalExtra", self.config.get("control"))
+        root_extra_offset_name = self._get_name("GlobalExtra", self.config.get("group"))
+
+        _, self.root_extra_ctrl = control.create_control(
+            name=root_extra_name,
+            offset_name=root_extra_offset_name,
+            parent=self.control_grp,
+            shape="square",
+            color_rgb=_SIDE_COLOR.get("middle", (0, 0, 1)),
+            size=6.0,
+        )
+        _, self.root_ctrl = control.create_control(
+            name=root_name,
+            offset_name=root_offset_name,
+            parent=self.root_extra_ctrl,
+            shape="square",
+            color_rgb=_SIDE_COLOR.get("middle", (0, 0, 1)),
+            size=5.0,
+        )
 
     def _get_name(self, name, description=None):
         values = {

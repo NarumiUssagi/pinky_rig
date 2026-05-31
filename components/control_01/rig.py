@@ -22,7 +22,7 @@ class ControlRig(Rig):
         self.relatives["root"] = self.ctrl
 
     def _get_follow_parent_groups(self):
-        return [self.ctrl.getParent()]
+        return [pm.listRelatives(self.ctrl, p=True)[0]]
 
     def _create_ctrl(self):
         ctrl_name = self._get_name("root", self.config.get("control"))
@@ -33,4 +33,8 @@ class ControlRig(Rig):
             offset_name,
             target_matrix=target_mtx,
             parent=self.ctrl_grp,
+            shape="square",
+            size=2,
+            rotate_axis="x",
+            rotate_angle=90,
         )

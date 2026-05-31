@@ -168,15 +168,15 @@ def matrix_blend_constraint(
     driver_a,
     driver_b,
     driven,
-    value=None,
-    translate_value=None,
-    rotate_value=None,
-    scale_value=None,
+    value=1.0,
     driver_attr=None,
     name="",
     skip_translate=None,
     skip_rotate=None,
     skip_scale=None,
+    blend_translate=True,
+    blend_rotate=True,
+    blend_scale=True,
     maintain_offset=True,
 ):
     is_joint = mc.nodeType(str(driven)) == "joint"
@@ -198,21 +198,19 @@ def matrix_blend_constraint(
     # --- blendMatrix: input = driver_a, target[0] = driver_b ---
     bmx = mc.createNode("blendMatrix", n=f"{name}_bmx")
     mc.connectAttr(f"{driver_a_local}.matrixSum", f"{bmx}.inputMatrix")
-    mc.connectAttr(f"{driver_b_local}.matrixSum", f"{bmx}.target[0].targetMatrix")
 
-    # --- per-channel weights (individual overrides value) ---
-    def _resolve(per_channel):
-        return per_channel if per_channel is not None else value
-
-    t_w = _resolve(translate_value)
-    r_w = _resolve(rotate_value)
-    s_w = _resolve(scale_value)
-    if t_w is not None:
-        mc.setAttr(f"{bmx}.target[0].translateWeight", t_w)
-    if r_w is not None:
-        mc.setAttr(f"{bmx}.target[0].rotateWeight", r_w)
-    if s_w is not None:
-        mc.setAttr(f"{bmx}.target[0].scaleWeight", s_w)
+    # Pick matrix
+    if not (blend_translate and blend_rotate and blend_scale):
+        pmx = mc.createNode("pickMatrix", n=f"{name}_pmx")
+        mc.connectAttr(f"{driver_b_local}.matrixSum", f"{pmx}.inputMatrix")
+        mc.setAttr(f"{pmx}.useTranslate", blend_translate)
+        mc.setAttr(f"{pmx}.useRotate", blend_rotate)
+        mc.setAttr(f"{pmx}.useScale", blend_scale)
+        mc.connectAttr(f"{pmx}.outputMatrix", f"{bmx}.target[0].targetMatrix", f=True)
+    else:
+        mc.connectAttr(f"{driver_b_local}.matrixSum", f"{bmx}.target[0].targetMatrix")
+    # Set value
+    mc.setAttr(f"{bmx}.target[0].weight", value)
 
     # --- core chain: offset * blend_output (both local) ---
     # NOTE: weights set above, so bmx.outputMatrix now reflects the build-time blend.

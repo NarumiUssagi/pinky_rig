@@ -47,26 +47,25 @@ class ArmRig(Rig):
         pm.parent(self.ik_handle, ik_ctrl)
 
         rev = pm.createNode("reverse", n=self._get_name("ikfk_blend", "reverse"))
-        pm.connectAttr(self.settings_ctrl.ikfk_blend, rev.inputX, f=1)
+        pm.connectAttr(f"{self.settings_ctrl}.ikfk_blend", rev.inputX, f=1)
 
         # Create constrain
         for i in range(3):
-            pm.connectAttr(rev.outputX, self.fk_ctrls[i].getParent().v, f=1)
+            par = pm.listRelatives(self.fk_ctrls[i], p=True)[0]
+            pm.connectAttr(rev.outputX, f"{par}.v", f=1)
 
             matrix_constraint.matrix_blend_constraint(
                 driver_a=self.fk_jnts[i],
                 driver_b=self.ik_jnts[i],
                 driven=self.jnts[i],
                 name=self._get_name("ikfk_blend"),
-                driver_attr=self.settings_ctrl.ikfk_blend,
+                driver_attr=f"{self.settings_ctrl}.ikfk_blend",
             )
+        ik_ctrl_par = pm.listRelatives(self.ik_ctrls[0], p=True)[0]
+        pv_ctrl_par = pm.listRelatives(self.ik_ctrls[1], p=True)[0]
 
-        pm.connectAttr(
-            self.settings_ctrl.ikfk_blend, self.ik_ctrls[0].getParent().v, f=1
-        )
-        pm.connectAttr(
-            self.settings_ctrl.ikfk_blend, self.ik_ctrls[1].getParent().v, f=1
-        )
+        pm.connectAttr(f"{self.settings_ctrl}.ikfk_blend", f"{ik_ctrl_par}.v", f=1)
+        pm.connectAttr(f"{self.settings_ctrl}.ikfk_blend", f"{pv_ctrl_par}.v", f=1)
 
     def add_attributes(self):
         default_blend = self.data["parameters"].get("ifk_blend", 0)
@@ -110,25 +109,5 @@ class ArmRig(Rig):
             if i < 3:
                 self.transforms[keys[i]] = list(mtx)
 
-    def _create_settings_ctrl(self):
-        settings_ctrl_grp_name = self._get_name(
-            self.name + "_settings", self.config.get("group")
-        )
-        self.settings_ctrl_grp = pm.group(
-            n=settings_ctrl_grp_name, p=self.ctrl_grp, em=True
-        )
-        if self.side == "right":
-            mtx = transform.get_offset_matrix(self.jnts[0], (0, 0, -2))
-        elif self.side == "left":
-            mtx = transform.get_offset_matrix(self.jnts[0], (0, 0, 2))
-        else:
-            mtx = transform.get_offset_matrix(self.jnts[0], (0, 2, 0))
-
-        ctrl_name = self._get_name("settings", self.config.get("control"))
-        offset_name = self._get_name("settings", self.config.get("offset"))
-        _, self.settings_ctrl = control.create_control(
-            ctrl_name,
-            offset_name,
-            target_matrix=mtx,
-            parent=self.settings_ctrl_grp,
-        )
+    def _resolve_size(self):
+        return round(self.segment_length("root", "wrist") / 10, 3)

@@ -2,7 +2,7 @@
 
 import importlib
 from . import guide, rig
-from ..core import transform, joint, control, matrix_constraint
+from ..core import transform, joint, control, matrix_constraint, loader, curve
 
 # Single source of truth for all components
 COMPONENT_MODULES = [
@@ -44,7 +44,16 @@ def get_registries():
 
 def reload_all():
     """For dev: reload framework + all components."""
-    for mod in [transform, joint, control, guide, rig, matrix_constraint]:
+    for mod in [
+        transform,
+        joint,
+        control,
+        guide,
+        rig,
+        matrix_constraint,
+        loader,
+        curve,
+    ]:
         importlib.reload(mod)
     for mod_name in COMPONENT_MODULES:
         g_mod, r_mod = _import_component(mod_name)

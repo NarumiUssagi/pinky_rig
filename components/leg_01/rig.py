@@ -70,34 +70,33 @@ class LegRig(Rig):
         pm.parent(toe_end_ik_handle, self.toe_tip_ctrl)
 
         rev = pm.createNode("reverse", n=self._get_name("ikfk_blend", "reverse"))
-        pm.connectAttr(self.settings_ctrl.ikfk_blend, rev.inputX, f=1)
+        pm.connectAttr(f"{self.settings_ctrl}.ikfk_blend", rev.inputX, f=1)
 
         # Create constrain
         for i in range(4):
-            pm.connectAttr(rev.outputX, self.fk_ctrls[i].getParent().v, f=1)
+            par = pm.listRelatives(self.fk_ctrls[i], p=True)[0]
+            pm.connectAttr(rev.outputX, f"{par}.v", f=1)
             matrix_constraint.matrix_blend_constraint(
                 driver_a=self.fk_jnts[i],
                 driver_b=self.ik_jnts[i],
                 driven=self.jnts[i],
                 name=self._get_name("ikfk_blend"),
-                driver_attr=self.settings_ctrl.ikfk_blend,
+                driver_attr=f"{self.settings_ctrl}.ikfk_blend",
             )
+        ik_ctrl_par = pm.listRelatives(self.ik_ctrls[0], p=True)[0]
+        pv_ctrl_par = pm.listRelatives(self.ik_ctrls[1], p=True)[0]
 
-        pm.connectAttr(
-            self.settings_ctrl.ikfk_blend, self.ik_ctrls[0].getParent().v, f=1
-        )
-        pm.connectAttr(
-            self.settings_ctrl.ikfk_blend, self.ik_ctrls[1].getParent().v, f=1
-        )
+        pm.connectAttr(f"{self.settings_ctrl}.ikfk_blend", f"{ik_ctrl_par}.v", f=1)
+        pm.connectAttr(f"{self.settings_ctrl}.ikfk_blend", f"{pv_ctrl_par}.v", f=1)
 
         # Connect reverse foot
 
         # Bank
         bank_cod = pm.createNode("condition", n=self._get_name("bank", "cod"))
-        pm.connectAttr(ik_ctrl.foot_bank, bank_cod.firstTerm)
+        pm.connectAttr(f"{ik_ctrl}.foot_bank", bank_cod.firstTerm)
         bank_cod.operation.set(2)
-        pm.connectAttr(ik_ctrl.foot_bank, bank_cod.colorIfFalseR)
-        pm.connectAttr(ik_ctrl.foot_bank, bank_cod.colorIfTrueG)
+        pm.connectAttr(f"{ik_ctrl}.foot_bank", bank_cod.colorIfFalseR)
+        pm.connectAttr(f"{ik_ctrl}.foot_bank", bank_cod.colorIfTrueG)
         bank_cod.colorIfFalseG.set(0)
 
         if self.side == "left":
@@ -114,7 +113,8 @@ class LegRig(Rig):
             pm.connectAttr(bank_cod.outColorG, self.reverse_foot_locs[1].rz)
 
         # Toe Tap
-        pm.connectAttr(ik_ctrl.toe_tap, self.toe_tip_ctrl.getParent().rz)
+        toe_tip_ctrl_par = pm.listRelatives(self.toe_tip_ctrl, p=True)[0]
+        pm.connectAttr(f"{ik_ctrl}.toe_tap", f"{toe_tip_ctrl_par}.rz")
 
         # Roll
         roll_cod = pm.createNode("condition", n=self._get_name("rollSplit", "cod"))
@@ -132,19 +132,19 @@ class LegRig(Rig):
         )
         roll_clamp = pm.createNode("clamp", n=self._get_name("rollToeClamp", "clamp"))
 
-        pm.connectAttr(ik_ctrl.foot_roll, roll_cod.firstTerm)
+        pm.connectAttr(f"{ik_ctrl}.foot_roll", roll_cod.firstTerm)
         roll_cod.operation.set(2)
-        pm.connectAttr(ik_ctrl.foot_roll_start, roll_cod.secondTerm)
+        pm.connectAttr(f"{ik_ctrl}.foot_roll_start", roll_cod.secondTerm)
 
         roll_diff.operation.set(2)
-        pm.connectAttr(ik_ctrl.foot_roll_start, roll_diff.input1D[0])
-        pm.connectAttr(ik_ctrl.foot_roll, roll_diff.input1D[1])
+        pm.connectAttr(f"{ik_ctrl}.foot_roll_start", roll_diff.input1D[0])
+        pm.connectAttr(f"{ik_ctrl}.foot_roll", roll_diff.input1D[1])
 
         roll_mirror.operation.set(1)
         pm.connectAttr(roll_diff.output1D, roll_mirror.input1D[0])
-        pm.connectAttr(ik_ctrl.foot_roll_start, roll_mirror.input1D[1])
+        pm.connectAttr(f"{ik_ctrl}.foot_roll_start", roll_mirror.input1D[1])
 
-        pm.connectAttr(ik_ctrl.foot_roll, roll_cod.colorIfFalseR)
+        pm.connectAttr(f"{ik_ctrl}.foot_roll", roll_cod.colorIfFalseR)
         pm.connectAttr(roll_mirror.output1D, roll_cod.colorIfTrueR)
 
         roll_eff_pos.input1X.set(-1)
@@ -154,20 +154,23 @@ class LegRig(Rig):
 
         roll_toe_neg.input1X.set(-1)
         pm.connectAttr(roll_cod.outColorR, roll_toe_neg.input2X)
-        pm.connectAttr(roll_cod.outColorG, self.eff_ctrl.getParent().rx)
+        eff_ctrl_par = pm.listRelatives(self.eff_ctrl, p=True)[0]
+        pm.connectAttr(roll_cod.outColorG, f"{eff_ctrl_par}.rx")
 
         pm.connectAttr(roll_toe_neg.outputX, roll_clamp.inputR)
         roll_clamp.minR.set(-9999)
         roll_clamp.maxR.set(0)
-        pm.connectAttr(roll_clamp.outputR, self.roll_ctrl.getParent().rz)
+        roll_ctrl_par = pm.listRelatives(self.eff_ctrl, p=True)[0]
+        pm.connectAttr(roll_clamp.outputR, f"{roll_ctrl_par}.rz")
 
         # Heel
         heel_cod = pm.createNode("condition", n=self._get_name("heel", "cod"))
-        pm.connectAttr(ik_ctrl.foot_roll, heel_cod.firstTerm)
-        pm.connectAttr(ik_ctrl.foot_roll, heel_cod.colorIfTrueR)
+        pm.connectAttr(f"{ik_ctrl}.foot_roll", heel_cod.firstTerm)
+        pm.connectAttr(f"{ik_ctrl}.foot_roll", heel_cod.colorIfTrueR)
         heel_cod.operation.set(4)
         heel_cod.colorIfFalseR.set(0)
-        pm.connectAttr(heel_cod.outColorR, self.heel_ctrl.getParent().rx)
+        heel_ctrl_par = pm.listRelatives(self.heel_ctrl, p=True)[0]
+        pm.connectAttr(heel_cod.outColorR, f"{heel_ctrl_par}.rx")
 
     def add_attributes(self):
         default_blend = self.data["parameters"].get("ifk_blend", 0.0)
@@ -290,6 +293,12 @@ class LegRig(Rig):
             reveser_foot_buffer_name = self._get_name(
                 loc_names[i], self.config.get("buffer")
             )
+            if self.side == "right":
+                rotate_angle = 0 if i < 2 else 0
+            else:
+                rotate_angle = 0 if i < 2 else 180
+
+            shape = "curved_two_arrows_3d" if i > 1 else "locator"
 
             _, current_ctrl = control.create_control(
                 reveser_foot_ctrl_name,
@@ -297,6 +306,11 @@ class LegRig(Rig):
                 buffer_name=reveser_foot_buffer_name,
                 target_matrix=t,
                 parent=self.reverse_foot_locs[-1],
+                shape=shape,
+                rotate_axis="z",
+                rotate_angle=rotate_angle,
+                lock_attrs=["sx", "sy", "sz", "v"],
+                size=self._resolve_size() * 0.5,
             )
             self.reverse_foot_locs.append(current_ctrl)
 
@@ -310,9 +324,15 @@ class LegRig(Rig):
             buffer_name=toe_tip_buffer_name,
             target_matrix=self.transforms["toe"],
             parent=self.reverse_foot_locs[-2],
+            rotate_axis="z",
+            rotate_angle=90,
+            size=self._resolve_size() * 0.75,
         )
 
         self.toe_tip_ctrl = toe_tip_ctrl
         self.roll_ctrl = self.reverse_foot_locs[-1]
         self.eff_ctrl = self.reverse_foot_locs[-2]
         self.heel_ctrl = self.reverse_foot_locs[-3]
+
+    def _resolve_size(self):
+        return round(self.segment_length("root", "ankle") / 10, 3)

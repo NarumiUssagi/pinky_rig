@@ -53,3 +53,7 @@ class ChainRig(Rig):
 
         for i, mtx in enumerate(mtxs):
             self.transforms[keys[i]] = list(mtx)
+
+    def _resolve_size(self):
+        segment = self.data["parameters"].get("segment", None)
+        return round(self.segment_length("root", f"chain{int(segment)-1}") / 10, 3) * 2

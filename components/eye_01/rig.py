@@ -29,21 +29,19 @@ class EyeRig(Rig):
 
     def add_operators(self):
         matrix_constraint.matrix_parent_constraint(self.eye_ctrl, self.jnts[0])
-
-        # Aim constraint
-        aim_vector = (1, 0, 0) if self.side == "right" else (-1, 0, 0)
+        eye_ctrl_par = pm.listRelatives(self.eye_ctrl, p=True)[0]
 
         if self.side == "left":
             matrix_constraint.matrix_aim_constraint(
                 driver=self.aim_ctrl,
-                driven=self.eye_ctrl.getParent(),
+                driven=eye_ctrl_par,
                 up_object=self.eye_offset,
                 primary_axis=(-1, 0, 0),
             )
         else:
             matrix_constraint.matrix_aim_constraint(
                 driver=self.aim_ctrl,
-                driven=self.eye_ctrl.getParent(),
+                driven=eye_ctrl_par,
                 up_object=self.eye_offset,
                 primary_axis=(1, 0, 0),
             )
@@ -83,6 +81,10 @@ class EyeRig(Rig):
             aim_offset_name,
             target_matrix=self.aim_transform,
             parent=self.ctrl_grp,
+            color_rgb=self._resolve_color(),
+            shape="locator",
+            lock_attrs=["rx", "ry", "rz", "sx", "sy", "sz", "v"],
+            size=self._resolve_size() * 0.5,
         )
         self.aim_ctrl = aim_ctrl
 
@@ -92,12 +94,18 @@ class EyeRig(Rig):
         buffer_name = self._get_name("eye", self.config.get("buffer"))
 
         target_mtx = list(self.transforms.values())[0]
+        angle = -90 if self.side == "right" else -270
         self.eye_offset, self.eye_ctrl = control.create_control(
             ctrl_name,
             offset_name,
             buffer_name=buffer_name,
             target_matrix=target_mtx,
             parent=self.ctrl_grp,
+            color_rgb=self._resolve_color(),
+            shape="one_arrow_thin",
+            rotate_axis="y",
+            rotate_angle=angle,
+            size=self._resolve_size(),
         )
 
     def _get_follow_parent_groups(self):
